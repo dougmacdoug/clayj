@@ -2,5 +2,30 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/_deps/raylib-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/_deps/sdl2-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/_deps/sdl2_ttf-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/_deps/sdl2_ttf-src/external/freetype" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/_deps/sdl2_ttf-src/external/freetype/subprojects/dlg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/_deps/sdl2_ttf-src/external/harfbuzz" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl_ttf-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl_ttf-src/external/freetype" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl_ttf-src/external/freetype/subprojects/dlg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl_ttf-src/external/harfbuzz" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl_ttf-src/external/plutosvg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl_ttf-src/external/plutosvg/plutovg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/SDL3-simple-demo/cmake-build-debug/_deps/sdl_ttf-src/external/plutovg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/examples/raylib-sidebar-scrolling-container/_deps/raylib-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/external/harfbuzz" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/external/plutosvg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/clay/external/plutovg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/cmake-build-debug/_deps/fontstash-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/cmake-build-debug/_deps/raylib-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/cmake-build-debug/_deps/sokol-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/cmake-build-release/_deps/fontstash-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/cmake-build-release/_deps/raylib-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/cmake-build-release/_deps/sokol-src" vcs="Git" />
   </component>
 </project>

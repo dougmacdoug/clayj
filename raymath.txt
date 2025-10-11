@@ -1,0 +1,5 @@
+#### Extracted from: C:\Users\macdo\IdeaProjects\clayj\lib\raymath_for_jextract.h
+
+--include-struct Matrix         # header: C:\Users\macdo\IdeaProjects\clayj\lib\raymath_for_jextract.h
+--include-struct Vector3        # header: C:\Users\macdo\IdeaProjects\clayj\lib\raymath_for_jextract.h
+--include-function MatrixLookAt # header: C:\Users\macdo\IdeaProjects\clayj\lib\raymath_for_jextract.h

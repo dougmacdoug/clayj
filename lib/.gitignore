@@ -1,0 +1,15 @@
+.idea/
+
+### Mac OS ###
+.DS_Store
+
+
+#cmake (from clion)
+cmake-build-debug/
+
+########
+# CLAY clone or download clay manually
+########
+clay
+
+

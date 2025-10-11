@@ -1,0 +1,373 @@
+package dmacd.clay;
+
+import dmacd.clay.demo.ClayVideoDemo_Arena;
+import dmacd.clay.demo.ClayVideoDemo_Data;
+import dmacd.clay.demo.Document;
+import dmacd.clay.demo.DocumentArray;
+import dmacd.ffm.clay.*;
+import dmacd.ffm.raylib.Color;
+import dmacd.ffm.raylib.Font;
+import dmacd.ffm.raylib.RayFFM;
+import dmacd.ffm.raylib.Vector2;
+
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+
+import static dmacd.clay.Clay.*;
+import static dmacd.clay.renderer.RaylibRenderer.*;
+import static dmacd.ffm.clay.ClayFFM.*;
+import static dmacd.ffm.raylib.RayFFM.*;
+
+public class Demo {
+    public static final MemorySegment STR_ROBOTO_FONT_PATH = SHARED_C_STRING("resources/Roboto-Regular.ttf");
+    static final int FONT_ID_BODY_16 = 0;
+    static final MemorySegment CLAY_COLOR_WHITE = SHARED_COLOR(255, 255, 255, 255);
+    static final MemorySegment BLACK = Color.allocate(SHARED_ARENA); // raylib color
+
+    static {
+        Color.r(BLACK, (byte) 0);
+        Color.g(BLACK, (byte) 0);
+        Color.b(BLACK, (byte) 0);
+        Color.a(BLACK, (byte) 0xFF);
+    }
+//    void RenderHeaderButton(Clay_String text) {
+//        CLAY({
+//                .layout = { .padding = { 16, 16, 8, 8 }},
+// .backgroundColor = { 140, 140, 140, 255 },
+// .cornerRadius = CLAY_CORNER_RADIUS(5)
+// }) {
+//            CLAY_TEXT(text, CLAY_TEXT_CONFIG({
+//                    .fontId = FONT_ID_BODY_16,
+//                    .fontSize = 16,
+//                    .textColor = { 255, 255, 255, 255 }
+// }));
+//        }
+//    }
+
+
+    static {
+        System.loadLibrary("raylib");
+    }
+
+    static MemorySegment documentsRaw = Document.allocateArray(5, SHARED_ARENA);
+    static MemorySegment documents = DocumentArray.allocate(SHARED_ARENA);
+
+    static {
+        DocumentArray.documents(documents, documentsRaw);
+        DocumentArray.length(documents, 5);
+    }
+
+    static void intoClayString(MemorySegment clayStr, String str) {
+        var cstr = SHARED_C_STRING(str);
+        Clay_String.chars(clayStr, cstr);
+        Clay_String.length(clayStr, (int) cstr.byteSize());
+        Clay_String.isStaticallyAllocated(clayStr, true);
+    }
+
+    static MemorySegment ClayVideoDemo_Initialize() {
+        var docArray = DocumentArray.documents(documents);
+        var doc = Document.asSlice(docArray, 0);
+        intoClayString(Document.title(doc), "Squirrels");
+        intoClayString(Document.contents(doc), "The Secret Life of Squirrels: Nature's Clever Acrobats\n""Squirrels are often overlooked creatures, dismissed as mere park inhabitants or backyard nuisances. Yet, beneath their fluffy tails and twitching noses lies an intricate world of cunning, agility, and survival tactics that are nothing short of fascinating. As one of the most common mammals in North America, squirrels have adapted to a wide range of environments from bustling urban centers to tranquil forests and have developed a variety of unique behaviors that continue to intrigue scientists and nature enthusiasts alike.\n""\n""Master Tree Climbers\n""At the heart of a squirrel's skill set is its impressive ability to navigate trees with ease. Whether they're darting from branch to branch or leaping across wide gaps, squirrels possess an innate talent for acrobatics. Their powerful hind legs, which are longer than their front legs, give them remarkable jumping power. With a tail that acts as a counterbalance, squirrels can leap distances of up to ten times the length of their body, making them some of the best aerial acrobats in the animal kingdom.\n""But it's not just their agility that makes them exceptional climbers. Squirrels' sharp, curved claws allow them to grip tree bark with precision, while the soft pads on their feet provide traction on slippery surfaces. Their ability to run at high speeds and scale vertical trunks with ease is a testament to the evolutionary adaptations that have made them so successful in their arboreal habitats.\n""\n""Food Hoarders Extraordinaire\n""Squirrels are often seen frantically gathering nuts, seeds, and even fungi in preparation for winter. While this behavior may seem like instinctual hoarding, it is actually a survival strategy that has been honed over millions of years. Known as \"scatter hoarding,\" squirrels store their food in a variety of hidden locations, often burying it deep in the soil or stashing it in hollowed-out tree trunks.\n""Interestingly, squirrels have an incredible memory for the locations of their caches. Research has shown that they can remember thousands of hiding spots, often returning to them months later when food is scarce. However, they don't always recover every stash some forgotten caches eventually sprout into new trees, contributing to forest regeneration. This unintentional role as forest gardeners highlights the ecological importance of squirrels in their ecosystems.\n""\n""The Great Squirrel Debate: Urban vs. Wild\n""While squirrels are most commonly associated with rural or wooded areas, their adaptability has allowed them to thrive in urban environments as well. In cities, squirrels have become adept at finding food sources in places like parks, streets, and even garbage cans. However, their urban counterparts face unique challenges, including traffic, predators, and the lack of natural shelters. Despite these obstacles, squirrels in urban areas are often observed using human infrastructure such as buildings, bridges, and power lines as highways for their acrobatic escapades.\n""There is, however, a growing concern regarding the impact of urban life on squirrel populations. Pollution, deforestation, and the loss of natural habitats are making it more difficult for squirrels to find adequate food and shelter. As a result, conservationists are focusing on creating squirrel-friendly spaces within cities, with the goal of ensuring these resourceful creatures continue to thrive in both rural and urban landscapes.\n""\n""A Symbol of Resilience\n""In many cultures, squirrels are symbols of resourcefulness, adaptability, and preparation. Their ability to thrive in a variety of environments while navigating challenges with agility and grace serves as a reminder of the resilience inherent in nature. Whether you encounter them in a quiet forest, a city park, or your own backyard, squirrels are creatures that never fail to amaze with their endless energy and ingenuity.\n""In the end, squirrels may be small, but they are mighty in their ability to survive and thrive in a world that is constantly changing. So next time you spot one hopping across a branch or darting across your lawn, take a moment to appreciate the remarkable acrobat at work a true marvel of the natural world.\n");
+
+        doc = Document.asSlice(docArray, 1);
+        intoClayString(Document.title(doc), "Lorem Ipsum");
+        intoClayString(Document.contents(doc), "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
+
+        doc = Document.asSlice(docArray, 2);
+        intoClayString(Document.title(doc), "Vacuum Instructions");
+        intoClayString(Document.contents(doc), "Chapter 3: Getting Started - Unpacking and Setup\\n\"\"\\n\"\"Congratulations on your new SuperClean Pro 5000 vacuum cleaner! In this section, we will guide you through the simple steps to get your vacuum up and running. Before you begin, please ensure that you have all the components listed in the \\\"Package Contents\\\" section on page 2.\\n\"\"\\n\"\"1. Unboxing Your Vacuum\\n\"\"Carefully remove the vacuum cleaner from the box. Avoid using sharp objects that could damage the product. Once removed, place the unit on a flat, stable surface to proceed with the setup. Inside the box, you should find:\\n\"\"\\n\"\"    The main vacuum unit\\n\"\"    A telescoping extension wand\\n\"\"    A set of specialized cleaning tools (crevice tool, upholstery brush, etc.)\\n\"\"    A reusable dust bag (if applicable)\\n\"\"    A power cord with a 3-prong plug\\n\"\"    A set of quick-start instructions\\n\"\"\\n\"\"2. Assembling Your Vacuum\\n\"\"Begin by attaching the extension wand to the main body of the vacuum cleaner. Line up the connectors and twist the wand into place until you hear a click. Next, select the desired cleaning tool and firmly attach it to the wand's end, ensuring it is securely locked in.\\n\"\"\\n\"\"For models that require a dust bag, slide the bag into the compartment at the back of the vacuum, making sure it is properly aligned with the internal mechanism. If your vacuum uses a bagless system, ensure the dust container is correctly seated and locked in place before use.\\n\"\"\\n\"\"3. Powering On\\n\"\"To start the vacuum, plug the power cord into a grounded electrical outlet. Once plugged in, locate the power switch, usually positioned on the side of the handle or body of the unit, depending on your model. Press the switch to the \\\"On\\\" position, and you should hear the motor begin to hum. If the vacuum does not power on, check that the power cord is securely plugged in, and ensure there are no blockages in the power switch.\\n\"\"\\n\"\"Note: Before first use, ensure that the vacuum filter (if your model has one) is properly installed. If unsure, refer to \\\"Section 5: Maintenance\\\" for filter installation instructions.");
+
+        doc = Document.asSlice(docArray, 3);
+        intoClayString(Document.title(doc), "Article 4");
+        intoClayString(Document.contents(doc), "Article 4");
+
+        doc = Document.asSlice(docArray, 4);
+        intoClayString(Document.title(doc), "Article 5");
+        intoClayString(Document.contents(doc), "Article 5");
+
+        var data = ClayVideoDemo_Data.allocate(SHARED_ARENA);
+        var frameArena = ClayVideoDemo_Data.frameArena(data);
+        ClayVideoDemo_Arena.memory(frameArena, SHARED_ARENA.allocate(1024).address());
+        return data;
+    }
+
+
+    public static void main(String argv[]) {
+
+        /**
+         *     documents.documents = (Document[]) {
+         *             { .title = CLAY_STRING("Squirrels"), .contents = CLAY_STRING("The Secret Life of Squirrels: Nature's Clever Acrobats\n""Squirrels are often overlooked creatures, dismissed as mere park inhabitants or backyard nuisances. Yet, beneath their fluffy tails and twitching noses lies an intricate world of cunning, agility, and survival tactics that are nothing short of fascinating. As one of the most common mammals in North America, squirrels have adapted to a wide range of environments from bustling urban centers to tranquil forests and have developed a variety of unique behaviors that continue to intrigue scientists and nature enthusiasts alike.\n""\n""Master Tree Climbers\n""At the heart of a squirrel's skill set is its impressive ability to navigate trees with ease. Whether they're darting from branch to branch or leaping across wide gaps, squirrels possess an innate talent for acrobatics. Their powerful hind legs, which are longer than their front legs, give them remarkable jumping power. With a tail that acts as a counterbalance, squirrels can leap distances of up to ten times the length of their body, making them some of the best aerial acrobats in the animal kingdom.\n""But it's not just their agility that makes them exceptional climbers. Squirrels' sharp, curved claws allow them to grip tree bark with precision, while the soft pads on their feet provide traction on slippery surfaces. Their ability to run at high speeds and scale vertical trunks with ease is a testament to the evolutionary adaptations that have made them so successful in their arboreal habitats.\n""\n""Food Hoarders Extraordinaire\n""Squirrels are often seen frantically gathering nuts, seeds, and even fungi in preparation for winter. While this behavior may seem like instinctual hoarding, it is actually a survival strategy that has been honed over millions of years. Known as \"scatter hoarding,\" squirrels store their food in a variety of hidden locations, often burying it deep in the soil or stashing it in hollowed-out tree trunks.\n""Interestingly, squirrels have an incredible memory for the locations of their caches. Research has shown that they can remember thousands of hiding spots, often returning to them months later when food is scarce. However, they don't always recover every stash some forgotten caches eventually sprout into new trees, contributing to forest regeneration. This unintentional role as forest gardeners highlights the ecological importance of squirrels in their ecosystems.\n""\n""The Great Squirrel Debate: Urban vs. Wild\n""While squirrels are most commonly associated with rural or wooded areas, their adaptability has allowed them to thrive in urban environments as well. In cities, squirrels have become adept at finding food sources in places like parks, streets, and even garbage cans. However, their urban counterparts face unique challenges, including traffic, predators, and the lack of natural shelters. Despite these obstacles, squirrels in urban areas are often observed using human infrastructure such as buildings, bridges, and power lines as highways for their acrobatic escapades.\n""There is, however, a growing concern regarding the impact of urban life on squirrel populations. Pollution, deforestation, and the loss of natural habitats are making it more difficult for squirrels to find adequate food and shelter. As a result, conservationists are focusing on creating squirrel-friendly spaces within cities, with the goal of ensuring these resourceful creatures continue to thrive in both rural and urban landscapes.\n""\n""A Symbol of Resilience\n""In many cultures, squirrels are symbols of resourcefulness, adaptability, and preparation. Their ability to thrive in a variety of environments while navigating challenges with agility and grace serves as a reminder of the resilience inherent in nature. Whether you encounter them in a quiet forest, a city park, or your own backyard, squirrels are creatures that never fail to amaze with their endless energy and ingenuity.\n""In the end, squirrels may be small, but they are mighty in their ability to survive and thrive in a world that is constantly changing. So next time you spot one hopping across a branch or darting across your lawn, take a moment to appreciate the remarkable acrobat at work a true marvel of the natural world.\n") },
+         *             { .title = CLAY_STRING("Lorem Ipsum"), .contents = CLAY_STRING("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.") },
+         *             { .title = CLAY_STRING("Vacuum Instructions"), .contents = CLAY_STRING("Chapter 3: Getting Started - Unpacking and Setup\n""\n""Congratulations on your new SuperClean Pro 5000 vacuum cleaner! In this section, we will guide you through the simple steps to get your vacuum up and running. Before you begin, please ensure that you have all the components listed in the \"Package Contents\" section on page 2.\n""\n""1. Unboxing Your Vacuum\n""Carefully remove the vacuum cleaner from the box. Avoid using sharp objects that could damage the product. Once removed, place the unit on a flat, stable surface to proceed with the setup. Inside the box, you should find:\n""\n""    The main vacuum unit\n""    A telescoping extension wand\n""    A set of specialized cleaning tools (crevice tool, upholstery brush, etc.)\n""    A reusable dust bag (if applicable)\n""    A power cord with a 3-prong plug\n""    A set of quick-start instructions\n""\n""2. Assembling Your Vacuum\n""Begin by attaching the extension wand to the main body of the vacuum cleaner. Line up the connectors and twist the wand into place until you hear a click. Next, select the desired cleaning tool and firmly attach it to the wand's end, ensuring it is securely locked in.\n""\n""For models that require a dust bag, slide the bag into the compartment at the back of the vacuum, making sure it is properly aligned with the internal mechanism. If your vacuum uses a bagless system, ensure the dust container is correctly seated and locked in place before use.\n""\n""3. Powering On\n""To start the vacuum, plug the power cord into a grounded electrical outlet. Once plugged in, locate the power switch, usually positioned on the side of the handle or body of the unit, depending on your model. Press the switch to the \"On\" position, and you should hear the motor begin to hum. If the vacuum does not power on, check that the power cord is securely plugged in, and ensure there are no blockages in the power switch.\n""\n""Note: Before first use, ensure that the vacuum filter (if your model has one) is properly installed. If unsure, refer to \"Section 5: Maintenance\" for filter installation instructions.") },
+         *             { .title = CLAY_STRING("Article 4"), .contents = CLAY_STRING("Article 4") },
+         *             { .title = CLAY_STRING("Article 5"), .contents = CLAY_STRING("Article 5") },
+         *     };
+         */
+
+        Clay_Raylib_Initialize(1024, 768, Arena.global().allocateFrom("Introducing Clay Demo"),
+                FLAG_WINDOW_RESIZABLE() | FLAG_WINDOW_HIGHDPI() | FLAG_MSAA_4X_HINT() | FLAG_VSYNC_HINT()); // Extra parameters to this function are new since the video was published
+
+        try (Arena arena = Arena.ofConfined()) {
+//            var fonts = Font.allocateArray(1, arena);
+            // technically same address
+            var fonts = LoadFontEx(arena, STR_ROBOTO_FONT_PATH, 48,
+                    MemorySegment.NULL, 400);
+            var font = Font.asSlice(fonts, FONT_ID_BODY_16);
+//         *     printf("font %p", &fonts[FONT_ID_BODY_16]);
+//         *     printf("font %p", &fonts[FONT_ID_BODY_16].texture);
+            SetTextureFilter(Font.texture(fonts), TEXTURE_FILTER_BILINEAR());
+
+            long clayRequiredMemory = Clay_MinMemorySize();
+            var clayMemoryTop = Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory,
+                    arena.allocate(clayRequiredMemory));
+            var dims = Clay_Dimensions.allocate(arena);
+            Clay_Dimensions.width(dims, GetScreenWidth());
+            Clay_Dimensions.height(dims, GetScreenHeight() / 2);
+            var errHandler = Clay_ErrorHandler.allocate(arena);
+            var errFunc = Clay_ErrorHandler.errorHandlerFunction.allocate(
+                    (errData) -> System.out.println("Error"), arena);
+            Clay_ErrorHandler.errorHandlerFunction(errHandler, errFunc);
+            var clayContextTop = Clay_Initialize(clayMemoryTop, dims, errHandler); // This final argument is new since the video was published
+
+            var dataTop = ClayVideoDemo_Initialize();
+
+            var measureTextFunc = Clay_SetMeasureTextFunction$measureTextFunction.allocate((a, b, c) -> {
+                return Raylib_MeasureText(arena, a, b, c);
+            }, arena);
+            Clay_SetMeasureTextFunction(measureTextFunc, font);
+
+            var clayMemoryBottom = Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory, arena.allocate(clayRequiredMemory));
+            // todo: in practice, possibly better to clone dims
+            var clayContextBottom = Clay_Initialize(clayMemoryBottom, dims, errHandler); // This final argument is new since the video was published
+            var dataBottom = ClayVideoDemo_Initialize();
+            Clay_SetMeasureTextFunction(measureTextFunc, fonts);
+
+            while (!WindowShouldClose()) {
+                ClayVideoDemo_Data.yOffset(dataBottom, (float) (GetScreenHeight() / 2));
+                var renderCommandsTop = CreateLayout(clayContextTop, & dataTop); //Clay_RenderCommandArray
+                var renderCommandsBottom = CreateLayout(clayContextBottom, & dataBottom);
+                BeginDrawing();
+                ClearBackground(BLACK);
+                Clay_Raylib_Render(renderCommandsTop, fonts);
+                Clay_Raylib_Render(renderCommandsBottom, fonts);
+                EndDrawing();
+            }
+
+            Clay_Raylib_Close();
+
+
+            return;
+        }
+   }
+    static MemorySegment layoutDimensions = Clay_Dimensions.allocate(SHARED_ARENA);
+    static final MemorySegment mousePosition = Vector2.allocate(SHARED_ARENA);
+    static final MemorySegment mouseScroll = Vector2.allocate(SHARED_ARENA);
+    static final MemorySegment pointerState = Clay_Vector2.allocate(SHARED_ARENA);
+    static final MemorySegment scrollState = Clay_Vector2.allocate(SHARED_ARENA);
+
+   static
+/*    Clay_RenderCommandArray */ MemorySegment
+    CreateLayout(MemorySegment context, /*(ClayVideoDemo_Data *)*/ MemorySegment data) {
+        Clay_SetCurrentContext(context);
+        Clay_SetDebugModeEnabled(true);
+        // Run once per frame
+       Clay_Dimensions.width(layoutDimensions, GetScreenWidth());
+       Clay_Dimensions.height(layoutDimensions, GetScreenHeight() / 2);
+       Clay_SetLayoutDimensions(layoutDimensions);
+       MemorySegment mp = GetMousePosition((a,b) ->mousePosition);
+
+        Vector2.y(mp, Vector2.y(mp) - ClayVideoDemo_Data.yOffset(data));
+        var scrollDelta = GetMouseWheelMoveV((a,b)->mouseScroll);
+       Clay_Vector2.x(pointerState, Vector2.x(mp));
+       Clay_Vector2.y(pointerState, Vector2.y(mp));
+       Clay_SetPointerState(pointerState, IsMouseButtonDown(0));
+
+       Clay_Vector2.x(scrollState, Vector2.x(scrollDelta));
+       Clay_Vector2.y(scrollState, Vector2.y(scrollDelta));
+        Clay_UpdateScrollContainers(true, scrollState, GetFrameTime());
+        return ClayVideoDemo_CreateLayout(data);
+    }
+
+    static MemorySegment msLayoutExpand = Clay_Sizing.allocate(SHARED_ARENA);
+
+
+    static
+    /*Clay_RenderCommandArray*/MemorySegment ClayVideoDemo_CreateLayout(/*(ClayVideoDemo_Data *)*/ MemorySegment data) {
+        var frameArena = ClayVideoDemo_Data.frameArena(data);
+        ClayVideoDemo_Arena.offset(frameArena, 0);
+
+        Clay_BeginLayout();
+
+// applies the setting directly to the memory segment
+        new LayoutConfig.Sizing(msLayoutExpand)
+                .width(LayoutConfig.Sizing.grow(0))
+                .height(LayoutConfig.Sizing.grow(0));
+        final Clay.Color contentBackgroundColor = new Clay.Color( 90, 90, 90, 255 );
+
+        // Build UI here
+        CLAY(id("OuterContainer")
+                .backgroundColor(43, 41, 51, 255 )
+                .layout(l->l
+                    .layoutDirection(CLAY_TOP_TO_BOTTOM)
+                    .sizing(s->s
+                        .width(LayoutConfig.Sizing.grow(0))
+                        .height(LayoutConfig.Sizing.grow(0))
+                    )
+                    .padding(CLAY_PADDING_ALL(16))
+                    .childGap(16)
+                ), ()-> {
+            // Child elements go inside braces
+            CLAY(id("HeaderBar")
+                    .layout(l->l
+                        .sizing(s->s
+                            .height(CLAY_SIZING_FIXED(60))
+                            .width(CLAY_SIZING_GROW(0))
+                        )
+                        .padding(16, 16, 0, 0)
+                        .childGap(16)
+                            // todo: childAlignment
+//                    .childAlignment(a->a) = {
+//                        .y = CLAY_ALIGN_Y_CENTER
+//                    }
+                    )
+                   .backgroundColor( contentBackgroundColor)
+                   .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
+                // Header buttons go here
+                CLAY(id("FileButton")
+                    .layout(l->l.padding( 16, 16, 8, 8 ))
+                    .backgroundColor(140, 140, 140, 255)
+                    .cornerRadius( CLAY_CORNER_RADIUS(5) ), ()->{
+                        CLAY_TEXT(CLAY_STRING("File"), CLAY_TEXT_CONFIG({
+                                .fontId = FONT_ID_BODY_16,
+                                .fontSize = 16,
+                                .textColor = { 255, 255, 255, 255 }
+                    }));
+
+                    bool fileMenuVisible =
+                            Clay_PointerOver(Clay_GetElementId(CLAY_STRING("FileButton")))
+                                    ||
+                                    Clay_PointerOver(Clay_GetElementId(CLAY_STRING("FileMenu")));
+
+                    if (fileMenuVisible) { // Below has been changed slightly to fix the small bug where the menu would dismiss when mousing over the top gap
+                        CLAY({ .id = CLAY_ID("FileMenu"),
+                                .floating = {
+                                .attachTo = CLAY_ATTACH_TO_PARENT,
+                            .attachPoints = {
+                                .parent = CLAY_ATTACH_POINT_LEFT_BOTTOM
+                            },
+                        },
+                        .layout = {
+                                .padding = {0, 0, 8, 8 }
+                        }
+                    }) {
+                            CLAY({
+                                    .layout = {
+                                    .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                                    .sizing = {
+                                    .width = CLAY_SIZING_FIXED(200)
+                                },
+                            },
+                            .backgroundColor = {40, 40, 40, 255 },
+                            .cornerRadius = CLAY_CORNER_RADIUS(8)
+                        }) {
+                                // Render dropdown items here
+                                RenderDropdownMenuItem(CLAY_STRING("New"));
+                                RenderDropdownMenuItem(CLAY_STRING("Open"));
+                                RenderDropdownMenuItem(CLAY_STRING("Close"));
+                            }
+                        }
+                    }
+                }
+                RenderHeaderButton(CLAY_STRING("Edit"));
+                CLAY({ .layout = { .sizing = { CLAY_SIZING_GROW(0) }}}) {}
+                RenderHeaderButton(CLAY_STRING("Upload"));
+                RenderHeaderButton(CLAY_STRING("Media"));
+                RenderHeaderButton(CLAY_STRING("Support"));
+            }
+
+            CLAY({
+                    .id = CLAY_ID("LowerContent"),
+                    .layout = { .sizing = layoutExpand, .childGap = 16 }
+        }) {
+                CLAY({
+                        .id = CLAY_ID("Sidebar"),
+                        .backgroundColor = contentBackgroundColor,
+                .layout = {
+                        .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                    .padding = CLAY_PADDING_ALL(16),
+                    .childGap = 8,
+                    .sizing = {
+                        .width = CLAY_SIZING_FIXED(250),
+                        .height = CLAY_SIZING_GROW(0)
+                    }
+                }
+            }) {
+                    for (int i = 0; i < documents.length; i++) {
+                        Document document = documents.documents[i];
+                        Clay_LayoutConfig sidebarButtonLayout = {
+                                .sizing = { .width = CLAY_SIZING_GROW(0) },
+                        .padding = CLAY_PADDING_ALL(16)
+                    };
+
+                        if (i == data->selectedDocumentIndex) {
+                            CLAY({
+                                    .layout = sidebarButtonLayout,
+                                    .backgroundColor = {120, 120, 120, 255 },
+                            .cornerRadius = CLAY_CORNER_RADIUS(8)
+                        }) {
+                                CLAY_TEXT(document.title, CLAY_TEXT_CONFIG({
+                                        .fontId = FONT_ID_BODY_16,
+                                        .fontSize = 20,
+                                        .textColor = { 255, 255, 255, 255 }
+                            }));
+                            }
+                        } else {
+                            SidebarClickData *clickData = (SidebarClickData *)(data->frameArena.memory + data->frameArena.offset);
+                        *clickData = (SidebarClickData) { .requestedDocumentIndex = i, .selectedDocumentIndex = &data->selectedDocumentIndex };
+                            data->frameArena.offset += sizeof(SidebarClickData);
+                            CLAY({ .layout = sidebarButtonLayout, .backgroundColor = (Clay_Color) { 120, 120, 120, Clay_Hovered() ? 120 : 0 }, .cornerRadius = CLAY_CORNER_RADIUS(8) }) {
+                                Clay_OnHover(HandleSidebarInteraction, (intptr_t)clickData);
+                                CLAY_TEXT(document.title, CLAY_TEXT_CONFIG({
+                                        .fontId = FONT_ID_BODY_16,
+                                        .fontSize = 20,
+                                        .textColor = { 255, 255, 255, 255 }
+                            }));
+                            }
+                        }
+                    }
+                }
+
+                CLAY({ .id = CLAY_ID("MainContent"),
+                        .backgroundColor = contentBackgroundColor,
+                .clip = { .vertical = true, .childOffset = Clay_GetScrollOffset() },
+                .layout = {
+                        .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                    .childGap = 16,
+                    .padding = CLAY_PADDING_ALL(16),
+                    .sizing = layoutExpand
+                }
+            }) {
+                    Document selectedDocument = documents.documents[data->selectedDocumentIndex];
+                    CLAY_TEXT(selectedDocument.title, CLAY_TEXT_CONFIG({
+                            .fontId = FONT_ID_BODY_16,
+                            .fontSize = 24,
+                            .textColor = COLOR_WHITE
+                }));
+                    CLAY_TEXT(selectedDocument.contents, CLAY_TEXT_CONFIG({
+                            .fontId = FONT_ID_BODY_16,
+                            .fontSize = 24,
+                            .textColor = COLOR_WHITE
+                }));
+                }
+            }
+        }
+
+        Clay_RenderCommandArray renderCommands = Clay_EndLayout();
+        for (int32_t i = 0; i < renderCommands.length; i++) {
+            Clay_RenderCommandArray_Get(&renderCommands, i)->boundingBox.y += data->yOffset;
+        }
+        return renderCommands;
+    }
+
+}

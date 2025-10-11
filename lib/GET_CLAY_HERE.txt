@@ -1,0 +1,7 @@
+clone clay into folder `clay`
+ you can use git clone or zip, it doesn't matter, but only this version has been tested
+
+// VERSION: 0.14
+git clone https://github.com/nicbarker/clay.git
+cd clay
+git checkout v0.14
