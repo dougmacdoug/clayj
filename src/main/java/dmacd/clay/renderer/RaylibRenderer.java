@@ -2,6 +2,7 @@ package dmacd.clay.renderer;
 
 import dmacd.ffm.clay.*;
 import dmacd.ffm.raylib.*;
+import org.w3c.dom.css.Rect;
 
 import java.lang.foreign.*;
 
@@ -33,24 +34,21 @@ public class RaylibRenderer {
         float lineTextWidth = 0;
         int maxLineCharCount = 0;
         int lineCharCount = 0;
-        MemorySegment ms; // tmp
-        ms = config.get(ValueLayout.ADDRESS, 0);
-        var msConfig = Clay_TextElementConfig.reinterpret(ms, arena, (p) -> {
+        var msConfig = Clay_TextElementConfig.reinterpret(config, arena, (p) -> {
         });
 
         float textHeight = Clay_TextElementConfig.fontSize(msConfig);// config->fontSize;
 
-        ms = userData.get(ValueLayout.ADDRESS, 0);
         int fontId = Clay_TextElementConfig.fontId(msConfig);
         // there might be more fonts than fontId + 1,
         // but we need to get FFM to actuate at least that much memory to be accessible
-        var msFontArray = Font.reinterpret(ms, fontId + 1, arena, (p) -> {
+        var msFontArray = Font.reinterpret(userData, fontId + 1, arena, (p) -> {
         });
-        var msFont = msFontArray.asSlice(Font.layout().byteSize() * fontId, Font.layout().byteSize());
+        var msFont = Font.asSlice(msFontArray, fontId);
 
         // Font failed to load, likely the fonts are in the wrong place relative to the execution dir.
         // RayLib ships with a default font, so we can continue with that built in one.
-        var msGlyphs = Font.glyphs(msFont);
+        var msGlyphs = Font.glyphs(msFontArray);
         if (msGlyphs == MemorySegment.NULL) {
             msFont = RayFFM.GetFontDefault(arena);
             msGlyphs = Font.glyphs(msFont);
@@ -63,7 +61,9 @@ public class RaylibRenderer {
 
 
         for (int i = 0; i < length; ++i, lineCharCount++) {
-            var c = chars.getAtIndex(ValueLayout.JAVA_BYTE, i);
+            int c = chars.getAtIndex(ValueLayout.JAVA_BYTE, i) & 0xFF;
+            // todo: setting Clay_String to 1 byte too many (including null terminator)
+            if(c == 0) continue;
             if (c == '\n') {
                 maxTextWidth = Math.max(maxTextWidth, lineTextWidth);
                 maxLineCharCount = Math.max(maxLineCharCount, lineCharCount);
@@ -74,11 +74,12 @@ public class RaylibRenderer {
             int index = c - 32;
             msGlyphs = GlyphInfo.reinterpret(msGlyphs, index + 1, arena, (p) -> {
             });
+
             var msGlyph = GlyphInfo.asSlice(msGlyphs, index);
             var msRecs = Font.recs(msFont);
-            msRecs = GlyphInfo.reinterpret(msRecs, index + 1, arena, (p) -> {
+            msRecs = Rectangle.reinterpret(msRecs, index + 1, arena, (p) -> {
             });
-            var msRec = msRecs.asSlice(index);
+            var msRec = Rectangle.asSlice(msRecs, index);
 
             if (GlyphInfo.advanceX(msGlyph) != 0) lineTextWidth += GlyphInfo.advanceX(msGlyph);
             else lineTextWidth += (Rectangle.width(msRec) + GlyphInfo.offsetX(msGlyph));
@@ -203,7 +204,7 @@ public class RaylibRenderer {
             var renderCommandsLength = Clay_RenderCommandArray.length(renderCommands);
             for (int j = 0; j < renderCommandsLength; j++) {
                 var /*(Clay_RenderCommand *)*/ msRC = Clay_RenderCommandArray_Get(renderCommands, j);
-                msRC = renderCommands.get(ValueLayout.ADDRESS, 0);
+//                msRC = renderCommands.get(ValueLayout.ADDRESS, 0);
                 msRC = Clay_RenderCommand.reinterpret(msRC, arena, (p) -> {
                 });
                 var msBB = Clay_RenderCommand.boundingBox(msRC);
@@ -222,6 +223,7 @@ public class RaylibRenderer {
                         var msFontToUse = Font.asSlice(fonts, fontId);
 
                         var msContents = Clay_TextRenderData.stringContents(renderData);
+                        var msChars = Clay_StringSlice.chars(msContents);
                         int strlen = Clay_StringSlice.length(msContents) + 1;
 
 //                    if(strlen > temp_render_buffer_len) {
@@ -232,8 +234,9 @@ public class RaylibRenderer {
 //                    }
                         // todo: something like the temp_buffer solution for memory allocation reduction /reuse
                         var msTemp = arena.allocate(strlen);
-                        MemorySegment.copy(msContents, 0, msTemp, 0, strlen - 1);
-                        msTemp.setAtIndex(ValueLayout.JAVA_BYTE, strlen - 1, (byte) 0);
+                        MemorySegment.copy(msChars, 0, msTemp, 0, strlen - 1);
+                        msTemp.setAtIndex(ValueLayout.JAVA_BYTE, strlen - 1, (byte)0);
+
                         // Raylib uses standard C strings so isn't compatible with cheap slices, we need to clone the string to append null terminator
 //                    memcpy(temp_render_buffer, textData->stringContents.chars, textData->stringContents.length);
 //                    temp_render_buffer[textData->stringContents.length] = '\0';
@@ -288,9 +291,8 @@ public class RaylibRenderer {
                         break;
                     }
                     case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
-                        var config = Clay_RenderData.rectangle(renderData);
-                        var cornerRadius = Clay_RectangleRenderData.cornerRadius(config);
-                        var clayBgc = Clay_RectangleRenderData.backgroundColor(config);
+                        var cornerRadius = Clay_RectangleRenderData.cornerRadius(renderData);
+                        var clayBgc = Clay_RectangleRenderData.backgroundColor(renderData);
                         var bgColor = Color.allocate(arena);
                         ClayColorToRaylibColor(clayBgc, bgColor);
 
@@ -308,10 +310,10 @@ public class RaylibRenderer {
                         break;
                     }
                     case CLAY_RENDER_COMMAND_TYPE_BORDER: {
-                    var config = Clay_RenderData.rectangle(renderData);
-                    var bw = Clay_BorderRenderData.width(config);
-                    var cornerRadius = Clay_BorderRenderData.cornerRadius(config);
-                    var clayColor = Clay_BorderRenderData.color(config);
+//                    var config = Clay_RenderData.rectangle(renderData);
+                    var bw = Clay_BorderRenderData.width(renderData);
+                    var cornerRadius = Clay_BorderRenderData.cornerRadius(renderData);
+                    var clayColor = Clay_BorderRenderData.color(renderData);
                     var color = Color.allocate(arena);
                     ClayColorToRaylibColor(clayColor, color);
                         // Left border
@@ -371,6 +373,7 @@ public class RaylibRenderer {
                         break;
                     }
                     case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
+                        System.out.println("Custom");
 //                    Clay_CustomRenderData *config = &renderCommand->renderData.custom;
 //                    CustomLayoutElement *customElement = (CustomLayoutElement *)config->customData;
 //                    if (!customElement) continue;
@@ -396,283 +399,4 @@ public class RaylibRenderer {
             }
         }
     }
-
-
 }
-
-
-//    public static final int CAMERA_PERSPECTIVE = 0;
-//    public static final int CAMERA_ORTHOGRAPHIC = 1;
-//    public static final double DEG2RAD = Math.PI / 180.0;
-//
-
-/**
- * copied from clay/renderers/raylib/clay_renderer_raylib.c
- * <p>
- * #include "raylib.h"
- * #include "raymath.h"
- * #include "stdint.h"
- * #include "string.h"
- * #include "stdio.h"
- * #include "stdlib.h"
- * <p>
- * #define CLAY_RECTANGLE_TO_RAYLIB_RECTANGLE(rectangle) (Rectangle) { .x = rectangle.x, .y = rectangle.y, .width = rectangle.width, .height = rectangle.height }
- * #define CLAY_COLOR_TO_RAYLIB_COLOR(color) (Color) { .r = (unsigned char)roundf(color.r), .g = (unsigned char)roundf(color.g), .b = (unsigned char)roundf(color.b), .a = (unsigned char)roundf(color.a) }
- * <p>
- * Camera Raylib_camera;
- * <p>
- * typedef enum
- * {
- * CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL
- * } CustomLayoutElementType;
- * <p>
- * typedef struct
- * {
- * Model model;
- * float scale;
- * Vector3 position;
- * Matrix rotation;
- * } CustomLayoutElement_3DModel;
- * <p>
- * typedef struct
- * {
- * CustomLayoutElementType type;
- * union {
- * CustomLayoutElement_3DModel model;
- * } customData;
- * } CustomLayoutElement;
- * <p>
- * // Get a ray trace from the screen position (i.e mouse) within a specific section of the screen
- * Ray GetScreenToWorldPointWithZDistance(Vector2 position, Camera camera, int screenWidth, int screenHeight, float zDistance)
- * {
- * Ray ray = { 0 };
- * <p>
- * // Calculate normalized device coordinates
- * // NOTE: y value is negative
- * float x = (2.0f*position.x)/(float)screenWidth - 1.0f;
- * float y = 1.0f - (2.0f*position.y)/(float)screenHeight;
- * float z = 1.0f;
- * <p>
- * // Store values in a vector
- * Vector3 deviceCoords = { x, y, z };
- * <p>
- * // Calculate view matrix from camera look at
- * Matrix matView = MatrixLookAt(camera.position, camera.target, camera.up);
- * <p>
- * Matrix matProj = MatrixIdentity();
- * <p>
- * if (camera.projection == CAMERA_PERSPECTIVE)
- * {
- * // Calculate projection matrix from perspective
- * matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)screenWidth/(double)screenHeight), 0.01f, zDistance);
- * }
- * else if (camera.projection == CAMERA_ORTHOGRAPHIC)
- * {
- * double aspect = (double)screenWidth/(double)screenHeight;
- * double top = camera.fovy/2.0;
- * double right = top*aspect;
- * <p>
- * // Calculate projection matrix from orthographic
- * matProj = MatrixOrtho(-right, right, -top, top, 0.01, 1000.0);
- * }
- * <p>
- * // Unproject far/near points
- * Vector3 nearPoint = Vector3Unproject((Vector3){ deviceCoords.x, deviceCoords.y, 0.0f }, matProj, matView);
- * Vector3 farPoint = Vector3Unproject((Vector3){ deviceCoords.x, deviceCoords.y, 1.0f }, matProj, matView);
- * <p>
- * // Calculate normalized direction vector
- * Vector3 direction = Vector3Normalize(Vector3Subtract(farPoint, nearPoint));
- * <p>
- * ray.position = farPoint;
- * <p>
- * // Apply calculated vectors to ray
- * ray.direction = direction;
- * <p>
- * return ray;
- * }
- * <p>
- * <p>
- * inline Clay_Dimensions Raylib_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
- * // Measure string size for Font
- * Clay_Dimensions textSize = { 0 };
- * <p>
- * float maxTextWidth = 0.0f;
- * float lineTextWidth = 0;
- * int maxLineCharCount = 0;
- * int lineCharCount = 0;
- * <p>
- * float textHeight = config->fontSize;
- * Font* fonts = (Font*)userData;
- * Font fontToUse = fonts[config->fontId];
- * // Font failed to load, likely the fonts are in the wrong place relative to the execution dir.
- * // RayLib ships with a default font, so we can continue with that built in one.
- * if (!fontToUse.glyphs) {
- * fontToUse = GetFontDefault();
- * }
- * <p>
- * float scaleFactor = config->fontSize/(float)fontToUse.baseSize;
- * <p>
- * for (int i = 0; i < text.length; ++i, lineCharCount++)
- * {
- * if (text.chars[i] == '\n') {
- * maxTextWidth = fmax(maxTextWidth, lineTextWidth);
- * maxLineCharCount = CLAY__MAX(maxLineCharCount, lineCharCount);
- * lineTextWidth = 0;
- * lineCharCount = 0;
- * continue;
- * }
- * int index = text.chars[i] - 32;
- * if (fontToUse.glyphs[index].advanceX != 0) lineTextWidth += fontToUse.glyphs[index].advanceX;
- * else lineTextWidth += (fontToUse.recs[index].width + fontToUse.glyphs[index].offsetX);
- * }
- * <p>
- * maxTextWidth = fmax(maxTextWidth, lineTextWidth);
- * maxLineCharCount = CLAY__MAX(maxLineCharCount, lineCharCount);
- * <p>
- * textSize.width = maxTextWidth * scaleFactor + (lineCharCount * config->letterSpacing);
- * textSize.height = textHeight;
- * <p>
- * return textSize;
- * }
- * <p>
- * void Clay_Raylib_Initialize(int width, int height, const char *title, unsigned int flags) {
- * SetConfigFlags(flags);
- * InitWindow(width, height, title);
- * //    EnableEventWaiting();
- * }
- * <p>
- * // A MALLOC'd buffer, that we keep modifying inorder to save from so many Malloc and Free Calls.
- * // Call Clay_Raylib_Close() to free
- * static char *temp_render_buffer = NULL;
- * static int temp_render_buffer_len = 0;
- * <p>
- * // Call after closing the window to clean up the render buffer
- * void Clay_Raylib_Close()
- * {
- * if(temp_render_buffer) free(temp_render_buffer);
- * temp_render_buffer_len = 0;
- * <p>
- * CloseWindow();
- * }
- * <p>
- * <p>
- * void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
- * {
- * for (int j = 0; j < renderCommands.length; j++)
- * {
- * Clay_RenderCommand *renderCommand = Clay_RenderCommandArray_Get(&renderCommands, j);
- * Clay_BoundingBox boundingBox = {roundf(renderCommand->boundingBox.x), roundf(renderCommand->boundingBox.y), roundf(renderCommand->boundingBox.width), roundf(renderCommand->boundingBox.height)};
- * switch (renderCommand->commandType)
- * {
- * case CLAY_RENDER_COMMAND_TYPE_TEXT: {
- * Clay_TextRenderData *textData = &renderCommand->renderData.text;
- * Font fontToUse = fonts[textData->fontId];
- * <p>
- * int strlen = textData->stringContents.length + 1;
- * <p>
- * if(strlen > temp_render_buffer_len) {
- * // Grow the temp buffer if we need a larger string
- * if(temp_render_buffer) free(temp_render_buffer);
- * temp_render_buffer = (char *) malloc(strlen);
- * temp_render_buffer_len = strlen;
- * }
- * <p>
- * // Raylib uses standard C strings so isn't compatible with cheap slices, we need to clone the string to append null terminator
- * memcpy(temp_render_buffer, textData->stringContents.chars, textData->stringContents.length);
- * temp_render_buffer[textData->stringContents.length] = '\0';
- * DrawTextEx(fontToUse, temp_render_buffer, (Vector2){boundingBox.x, boundingBox.y}, (float)textData->fontSize, (float)textData->letterSpacing, CLAY_COLOR_TO_RAYLIB_COLOR(textData->textColor));
- * <p>
- * break;
- * }
- * case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
- * Texture2D imageTexture = *(Texture2D *)renderCommand->renderData.image.imageData;
- * Clay_Color tintColor = renderCommand->renderData.image.backgroundColor;
- * if (tintColor.r == 0 && tintColor.g == 0 && tintColor.b == 0 && tintColor.a == 0) {
- * tintColor = (Clay_Color) { 255, 255, 255, 255 };
- * }
- * DrawTexturePro(
- * imageTexture,
- * (Rectangle) { 0, 0, imageTexture.width, imageTexture.height },
- * (Rectangle){boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height},
- * (Vector2) {},
- * 0,
- * CLAY_COLOR_TO_RAYLIB_COLOR(tintColor));
- * break;
- * }
- * case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
- * BeginScissorMode((int)roundf(boundingBox.x), (int)roundf(boundingBox.y), (int)roundf(boundingBox.width), (int)roundf(boundingBox.height));
- * break;
- * }
- * case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
- * EndScissorMode();
- * break;
- * }
- * case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
- * Clay_RectangleRenderData *config = &renderCommand->renderData.rectangle;
- * if (config->cornerRadius.topLeft > 0) {
- * float radius = (config->cornerRadius.topLeft * 2) / (float)((boundingBox.width > boundingBox.height) ? boundingBox.height : boundingBox.width);
- * DrawRectangleRounded((Rectangle) { boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height }, radius, 8, CLAY_COLOR_TO_RAYLIB_COLOR(config->backgroundColor));
- * } else {
- * DrawRectangle(boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height, CLAY_COLOR_TO_RAYLIB_COLOR(config->backgroundColor));
- * }
- * break;
- * }
- * case CLAY_RENDER_COMMAND_TYPE_BORDER: {
- * Clay_BorderRenderData *config = &renderCommand->renderData.border;
- * // Left border
- * if (config->width.left > 0) {
- * DrawRectangle((int)roundf(boundingBox.x), (int)roundf(boundingBox.y + config->cornerRadius.topLeft), (int)config->width.left, (int)roundf(boundingBox.height - config->cornerRadius.topLeft - config->cornerRadius.bottomLeft), CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * // Right border
- * if (config->width.right > 0) {
- * DrawRectangle((int)roundf(boundingBox.x + boundingBox.width - config->width.right), (int)roundf(boundingBox.y + config->cornerRadius.topRight), (int)config->width.right, (int)roundf(boundingBox.height - config->cornerRadius.topRight - config->cornerRadius.bottomRight), CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * // Top border
- * if (config->width.top > 0) {
- * DrawRectangle((int)roundf(boundingBox.x + config->cornerRadius.topLeft), (int)roundf(boundingBox.y), (int)roundf(boundingBox.width - config->cornerRadius.topLeft - config->cornerRadius.topRight), (int)config->width.top, CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * // Bottom border
- * if (config->width.bottom > 0) {
- * DrawRectangle((int)roundf(boundingBox.x + config->cornerRadius.bottomLeft), (int)roundf(boundingBox.y + boundingBox.height - config->width.bottom), (int)roundf(boundingBox.width - config->cornerRadius.bottomLeft - config->cornerRadius.bottomRight), (int)config->width.bottom, CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * if (config->cornerRadius.topLeft > 0) {
- * DrawRing((Vector2) { roundf(boundingBox.x + config->cornerRadius.topLeft), roundf(boundingBox.y + config->cornerRadius.topLeft) }, roundf(config->cornerRadius.topLeft - config->width.top), config->cornerRadius.topLeft, 180, 270, 10, CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * if (config->cornerRadius.topRight > 0) {
- * DrawRing((Vector2) { roundf(boundingBox.x + boundingBox.width - config->cornerRadius.topRight), roundf(boundingBox.y + config->cornerRadius.topRight) }, roundf(config->cornerRadius.topRight - config->width.top), config->cornerRadius.topRight, 270, 360, 10, CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * if (config->cornerRadius.bottomLeft > 0) {
- * DrawRing((Vector2) { roundf(boundingBox.x + config->cornerRadius.bottomLeft), roundf(boundingBox.y + boundingBox.height - config->cornerRadius.bottomLeft) }, roundf(config->cornerRadius.bottomLeft - config->width.bottom), config->cornerRadius.bottomLeft, 90, 180, 10, CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * if (config->cornerRadius.bottomRight > 0) {
- * DrawRing((Vector2) { roundf(boundingBox.x + boundingBox.width - config->cornerRadius.bottomRight), roundf(boundingBox.y + boundingBox.height - config->cornerRadius.bottomRight) }, roundf(config->cornerRadius.bottomRight - config->width.bottom), config->cornerRadius.bottomRight, 0.1, 90, 10, CLAY_COLOR_TO_RAYLIB_COLOR(config->color));
- * }
- * break;
- * }
- * case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
- * Clay_CustomRenderData *config = &renderCommand->renderData.custom;
- * CustomLayoutElement *customElement = (CustomLayoutElement *)config->customData;
- * if (!customElement) continue;
- * switch (customElement->type) {
- * case CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL: {
- * Clay_BoundingBox rootBox = renderCommands.internalArray[0].boundingBox;
- * float scaleValue = CLAY__MIN(CLAY__MIN(1, 768 / rootBox.height) * CLAY__MAX(1, rootBox.width / 1024), 1.5f);
- * Ray positionRay = GetScreenToWorldPointWithZDistance((Vector2) { renderCommand->boundingBox.x + renderCommand->boundingBox.width / 2, renderCommand->boundingBox.y + (renderCommand->boundingBox.height / 2) + 20 }, Raylib_camera, (int)roundf(rootBox.width), (int)roundf(rootBox.height), 140);
- * BeginMode3D(Raylib_camera);
- * DrawModel(customElement->customData.model.model, positionRay.position, customElement->customData.model.scale * scaleValue, WHITE);        // Draw 3d model with texture
- * EndMode3D();
- * break;
- * }
- * default: break;
- * }
- * break;
- * }
- * default: {
- * printf("Error: unhandled render command.");
- * exit(1);
- * }
- * }
- * }
- * }
- *
- */

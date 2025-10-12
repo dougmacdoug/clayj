@@ -3,9 +3,6 @@ package dmacd.clay;
 import dmacd.ffm.clay.*;
 
 import java.lang.foreign.*;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -13,14 +10,11 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.function.Function;
 
-import static dmacd.clay.Clay.FloatingElementConfig.AttachPoint.CLAY_ATTACH_POINT_CENTER_BOTTOM;
-import static dmacd.clay.Clay.FloatingElementConfig.AttachPoint.CLAY_ATTACH_POINT_LEFT_TOP;
 import static dmacd.clay.Clay.LayoutConfig.Sizing.fixed;
 import static dmacd.clay.Clay.LayoutConfig.Sizing.percent;
 import static dmacd.clay.Clay.LayoutConfig.Sizing.grow;
 import static dmacd.clay.Clay.LayoutConfig.Sizing.fit;
-import static dmacd.ffm.clay.ClayFFM.Clay__OpenTextElement;
-import static dmacd.ffm.clay.ClayFFM.Clay__StoreTextElementConfig;
+import static dmacd.ffm.clay.ClayFFM.*;
 
 /**
  * Main library class works as a util for all access to Clay library
@@ -43,7 +37,7 @@ public class Clay {
     public static MemorySegment clayString(MemorySegment cstr, SegmentAllocator allocator) {
         var ms = Clay_String.allocate(allocator);
         Clay_String.chars(ms, cstr);
-        Clay_String.length(ms, (int)cstr.byteSize());
+        Clay_String.length(ms, (int)cstr.byteSize() - 1);
         Clay_String.isStaticallyAllocated(ms, true); // todo: maybe only if alloc==SHARED?
         return ms;
     }
@@ -95,17 +89,32 @@ public class Clay {
         elementQueue.offer(element.elmMs);
         element.elmMs = null;
     }
+    public static MemorySegment getElementId(String s) {
+        var clayStringMS = globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString);
+        // todo: wasteful, need another queue or better yet a diff system
+        var idMs = Clay_ElementId.allocate(arena);
+        var strMs = Clay_ElementId.stringId(idMs);
+        Clay_String.chars(strMs, clayStringMS);
+        Clay_String.length(strMs,(int) clayStringMS.byteSize());
+        Clay_String.isStaticallyAllocated(strMs, true);
+        return Clay_GetElementId((a,b)->idMs, strMs);
+    }
+
     public static void CLAY_TEXT(String text, Function<TextElementConfig, TextElementConfig> textConfig) {
+        clayText(text, textConfig);
+    }
+    public static void CLAY_TEXT(MemorySegment text, Function<TextElementConfig, TextElementConfig> textConfig) {
         clayText(text, textConfig);
     }
     // todo: need one for global string literals and dynamic strings
     public static void clayText(String text, Function<TextElementConfig, TextElementConfig> textConfig) {
-        var ct = makeClayText(text);
+        clayText(makeClayText(text), textConfig);
+    }
+    public static void clayText(MemorySegment text, Function<TextElementConfig, TextElementConfig> textConfig) {
         var cfgMs = nextTextDeclaration();
         textConfig.apply(new TextElementConfig(cfgMs));
        var cfg = Clay__StoreTextElementConfig(cfgMs);
-       Clay__OpenTextElement(ct, cfg);
-
+       Clay__OpenTextElement(text, cfg);
     }
 
     public record TextElementConfig(MemorySegment ms) {
@@ -166,7 +175,7 @@ public class Clay {
         var clayStr = Clay_String.allocate(allocator);
         var utf8 = allocator.allocateFrom(s);
         Clay_String.chars(clayStr, utf8);
-        Clay_String.isStaticallyAllocated(clayStr, false); //allocator == Arena.global());
+        Clay_String.isStaticallyAllocated(clayStr, true); //allocator == Arena.global());
         Clay_String.length(clayStr, (int) utf8.byteSize());
         return clayStr;
     }
@@ -177,6 +186,10 @@ public class Clay {
         return globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString);
     }
     private MemorySegment elmMs;
+
+    private Clay() {
+        elmMs = nextElementDeclaration();
+    }
 
     private Clay(String id) {
         elmMs = nextElementDeclaration();
@@ -189,14 +202,16 @@ public class Clay {
 //            System.out.println("bytes: " + b + " align: " + a + " MS: " +idMs.byteSize());
             return idMs;
         }, clayStringMS, 0, 0);
-        this.id = id;
     }
 
     MemorySegment idMs;
-    private String id;
 
     public static Clay id(String id) {
+        if(id.isEmpty()) return new Clay();
         return new Clay(id);
+    }
+    public static Clay anon() {
+        return new Clay();
     }
 
     public static void errorHandler(MemorySegment errorData) {
@@ -401,7 +416,12 @@ public class Clay {
             Clay_ClipElementConfig.vertical(ms, on);
             return this;
         }
-
+        // todo: hmm..
+        public ClipElementConfig childOffset(MemorySegment v2) {
+            var offset = Clay_ClipElementConfig.childOffset(ms);
+            MemorySegment.copy(v2, 0, offset, 0, Clay_Vector2.layout().byteSize());
+            return this;
+        }
         public ClipElementConfig childOffset(float x, float y) {
             var offset = Clay_ClipElementConfig.childOffset(ms);
             Clay_Vector2.x(offset, x);
@@ -419,7 +439,7 @@ public class Clay {
 
 
     private static Arena arena;
-
+    public static Arena arena() { return arena; } // todo: tmp..
     public static void initialize(Arena arena) {
         Clay.arena = arena;
     }
@@ -453,6 +473,12 @@ public class Clay {
         public LayoutConfig sizing(Function<Sizing, Sizing> s) {
             var sizeMs = Clay_LayoutConfig.sizing(ms);
             s.apply(new Sizing(sizeMs));
+            return this;
+        }
+
+        public LayoutConfig sizing(SizingAxis width) {
+            var sizeMs = Clay_LayoutConfig.sizing(ms);
+            new Sizing(sizeMs).width(width);
             return this;
         }
 

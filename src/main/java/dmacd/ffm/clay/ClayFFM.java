@@ -258,6 +258,42 @@ public class ClayFFM {
     public static int CLAY_RENDER_COMMAND_TYPE_CUSTOM() {
         return CLAY_RENDER_COMMAND_TYPE_CUSTOM;
     }
+    private static final int CLAY_POINTER_DATA_PRESSED_THIS_FRAME = (int)0L;
+    /**
+     * {@snippet lang=c :
+     * enum <anonymous>.CLAY_POINTER_DATA_PRESSED_THIS_FRAME = 0
+     * }
+     */
+    public static int CLAY_POINTER_DATA_PRESSED_THIS_FRAME() {
+        return CLAY_POINTER_DATA_PRESSED_THIS_FRAME;
+    }
+    private static final int CLAY_POINTER_DATA_PRESSED = (int)1L;
+    /**
+     * {@snippet lang=c :
+     * enum <anonymous>.CLAY_POINTER_DATA_PRESSED = 1
+     * }
+     */
+    public static int CLAY_POINTER_DATA_PRESSED() {
+        return CLAY_POINTER_DATA_PRESSED;
+    }
+    private static final int CLAY_POINTER_DATA_RELEASED_THIS_FRAME = (int)2L;
+    /**
+     * {@snippet lang=c :
+     * enum <anonymous>.CLAY_POINTER_DATA_RELEASED_THIS_FRAME = 2
+     * }
+     */
+    public static int CLAY_POINTER_DATA_RELEASED_THIS_FRAME() {
+        return CLAY_POINTER_DATA_RELEASED_THIS_FRAME;
+    }
+    private static final int CLAY_POINTER_DATA_RELEASED = (int)3L;
+    /**
+     * {@snippet lang=c :
+     * enum <anonymous>.CLAY_POINTER_DATA_RELEASED = 3
+     * }
+     */
+    public static int CLAY_POINTER_DATA_RELEASED() {
+        return CLAY_POINTER_DATA_RELEASED;
+    }
 
     private static class Clay_MinMemorySize {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(

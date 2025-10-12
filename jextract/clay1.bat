@@ -21,6 +21,10 @@ jextract -D __clang__ ^
 --include-constant     CLAY__SIZING_TYPE_GROW      ^
 --include-constant     CLAY__SIZING_TYPE_PERCENT      ^
 --include-constant     CLAY__SIZING_TYPE_FIXED      ^
+--include-constant    CLAY_POINTER_DATA_PRESSED_THIS_FRAME ^
+--include-constant    CLAY_POINTER_DATA_PRESSED ^
+--include-constant    CLAY_POINTER_DATA_RELEASED_THIS_FRAME ^
+--include-constant    CLAY_POINTER_DATA_RELEASED ^
 --include-typedef    Clay__SizingType ^
 --include-typedef Clay_FloatingAttachPointType ^
   --include-struct Clay_TextRenderData        ^
