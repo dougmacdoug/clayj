@@ -4,13 +4,10 @@ package dmacd.ffm.raylib;
 
 import java.lang.invoke.*;
 import java.lang.foreign.*;
-import java.nio.ByteOrder;
 import java.util.*;
-import java.util.function.*;
 import java.util.stream.*;
 
 import static java.lang.foreign.ValueLayout.*;
-import static java.lang.foreign.MemoryLayout.PathElement.*;
 
 public class RayFFM {
 
@@ -588,7 +585,7 @@ public class RayFFM {
 
     private static class ClearBackground {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("ClearBackground");
@@ -1098,7 +1095,7 @@ public class RayFFM {
 
     private static class GetMousePosition {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Vector2.layout()    );
+            Rayliib.Vector2.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("GetMousePosition");
 
@@ -1154,7 +1151,7 @@ public class RayFFM {
 
     private static class GetMouseWheelMoveV {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Vector2.layout()    );
+            Rayliib.Vector2.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("GetMouseWheelMoveV");
 
@@ -1210,13 +1207,13 @@ public class RayFFM {
 
     private static class DrawRing {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Vector2.layout(),
+            Rayliib.Vector2.layout(),
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
             RayFFM.C_INT,
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawRing");
@@ -1277,7 +1274,7 @@ public class RayFFM {
             RayFFM.C_INT,
             RayFFM.C_INT,
             RayFFM.C_INT,
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawRectangle");
@@ -1334,10 +1331,10 @@ public class RayFFM {
 
     private static class DrawRectangleRounded {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rectangle.layout(),
+            Rayliib.Rectangle.layout(),
             RayFFM.C_FLOAT,
             RayFFM.C_INT,
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawRectangleRounded");
@@ -1394,7 +1391,7 @@ public class RayFFM {
 
     private static class LoadImage {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Image.layout(),
+            Rayliib.Image.layout(),
             RayFFM.C_POINTER
         );
 
@@ -1452,7 +1449,7 @@ public class RayFFM {
 
     private static class SetTextureFilter {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Texture.layout(),
+            Rayliib.Texture.layout(),
             RayFFM.C_INT
         );
 
@@ -1510,10 +1507,10 @@ public class RayFFM {
 
     private static class DrawTexture {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Texture.layout(),
+            Rayliib.Texture.layout(),
             RayFFM.C_INT,
             RayFFM.C_INT,
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawTexture");
@@ -1570,12 +1567,12 @@ public class RayFFM {
 
     private static class DrawTexturePro {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Texture.layout(),
-            Rectangle.layout(),
-            Rectangle.layout(),
-            Vector2.layout(),
+            Rayliib.Texture.layout(),
+            Rayliib.Rectangle.layout(),
+            Rayliib.Rectangle.layout(),
+            Rayliib.Vector2.layout(),
             RayFFM.C_FLOAT,
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawTexturePro");
@@ -1632,7 +1629,7 @@ public class RayFFM {
 
     private static class GetFontDefault {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Font.layout()    );
+            Rayliib.Font.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("GetFontDefault");
 
@@ -1688,7 +1685,7 @@ public class RayFFM {
 
     private static class LoadFont {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Font.layout(),
+            Rayliib.Font.layout(),
             RayFFM.C_POINTER
         );
 
@@ -1746,7 +1743,7 @@ public class RayFFM {
 
     private static class LoadFontEx {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Font.layout(),
+            Rayliib.Font.layout(),
             RayFFM.C_POINTER,
             RayFFM.C_INT,
             RayFFM.C_POINTER,
@@ -1811,7 +1808,7 @@ public class RayFFM {
             RayFFM.C_INT,
             RayFFM.C_INT,
             RayFFM.C_INT,
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawText");
@@ -1868,12 +1865,12 @@ public class RayFFM {
 
     private static class DrawTextEx {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Font.layout(),
+            Rayliib.Font.layout(),
             RayFFM.C_POINTER,
-            Vector2.layout(),
+            Rayliib.Vector2.layout(),
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
-            Color.layout()
+            Rayliib.Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawTextEx");
@@ -1989,10 +1986,10 @@ public class RayFFM {
 
     private static class MatrixLookAt {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Matrix.layout(),
-            Vector3.layout(),
-            Vector3.layout(),
-            Vector3.layout()
+            Rayliib.Matrix.layout(),
+            Rayliib.Vector3.layout(),
+            Rayliib.Vector3.layout(),
+            Rayliib.Vector3.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("MatrixLookAt");
@@ -2049,7 +2046,7 @@ public class RayFFM {
 
     private static class MatrixIdentity {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Matrix.layout()    );
+            Rayliib.Matrix.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("MatrixIdentity");
 
@@ -2105,7 +2102,7 @@ public class RayFFM {
 
     private static class MatrixPerspective {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Matrix.layout(),
+            Rayliib.Matrix.layout(),
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
@@ -2166,7 +2163,7 @@ public class RayFFM {
 
     private static class MatrixOrtho {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Matrix.layout(),
+            Rayliib.Matrix.layout(),
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
@@ -2229,10 +2226,10 @@ public class RayFFM {
 
     private static class Vector3Unproject {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Vector3.layout(),
-            Vector3.layout(),
-            Matrix.layout(),
-            Matrix.layout()
+            Rayliib.Vector3.layout(),
+            Rayliib.Vector3.layout(),
+            Rayliib.Matrix.layout(),
+            Rayliib.Matrix.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("Vector3Unproject");
@@ -2289,8 +2286,8 @@ public class RayFFM {
 
     private static class Vector3Normalize {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Vector3.layout(),
-            Vector3.layout()
+            Rayliib.Vector3.layout(),
+            Rayliib.Vector3.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("Vector3Normalize");
@@ -2347,9 +2344,9 @@ public class RayFFM {
 
     private static class Vector3Subtract {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Vector3.layout(),
-            Vector3.layout(),
-            Vector3.layout()
+            Rayliib.Vector3.layout(),
+            Rayliib.Vector3.layout(),
+            Rayliib.Vector3.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("Vector3Subtract");

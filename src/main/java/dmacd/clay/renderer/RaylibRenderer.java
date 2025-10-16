@@ -2,7 +2,6 @@ package dmacd.clay.renderer;
 
 import dmacd.ffm.clay.*;
 import dmacd.ffm.raylib.*;
-import org.w3c.dom.css.Rect;
 
 import java.lang.foreign.*;
 
@@ -17,10 +16,10 @@ public class RaylibRenderer {
         var g = Math.round(Clay_Color.g(clayColor));
         var b = Math.round(Clay_Color.b(clayColor));
         var a = Math.round(Clay_Color.a(clayColor));
-        Color.r(raylibColor, (byte) r);
-        Color.g(raylibColor, (byte) g);
-        Color.b(raylibColor, (byte) b);
-        Color.a(raylibColor, (byte) a);
+        Rayliib.Color.r(raylibColor, (byte) r);
+        Rayliib.Color.g(raylibColor, (byte) g);
+        Rayliib.Color.b(raylibColor, (byte) b);
+        Rayliib.Color.a(raylibColor, (byte) a);
     }
     // copied from clay_renderer. converted from C to Java FFM
 
@@ -42,19 +41,19 @@ public class RaylibRenderer {
         int fontId = Clay_TextElementConfig.fontId(msConfig);
         // there might be more fonts than fontId + 1,
         // but we need to get FFM to actuate at least that much memory to be accessible
-        var msFontArray = Font.reinterpret(userData, fontId + 1, arena, (p) -> {
+        var msFontArray = Rayliib.Font.reinterpret(userData, fontId + 1, arena, (p) -> {
         });
-        var msFont = Font.asSlice(msFontArray, fontId);
+        var msFont = Rayliib.Font.asSlice(msFontArray, fontId);
 
         // Font failed to load, likely the fonts are in the wrong place relative to the execution dir.
         // RayLib ships with a default font, so we can continue with that built in one.
-        var msGlyphs = Font.glyphs(msFontArray);
+        var msGlyphs = Rayliib.Font.glyphs(msFontArray);
         if (msGlyphs == MemorySegment.NULL) {
             msFont = RayFFM.GetFontDefault(arena);
-            msGlyphs = Font.glyphs(msFont);
+            msGlyphs = Rayliib.Font.glyphs(msFont);
         }
 
-        float scaleFactor = textHeight / (float) Font.baseSize(msFont);
+        float scaleFactor = textHeight / (float) Rayliib.Font.baseSize(msFont);
 
         int length = Clay_StringSlice.length(text);
         var chars = Clay_StringSlice.chars(text).reinterpret(length);
@@ -72,17 +71,17 @@ public class RaylibRenderer {
                 continue;
             }
             int index = c - 32;
-            msGlyphs = GlyphInfo.reinterpret(msGlyphs, index + 1, arena, (p) -> {
+            msGlyphs = Rayliib.GlyphInfo.reinterpret(msGlyphs, index + 1, arena, (p) -> {
             });
 
-            var msGlyph = GlyphInfo.asSlice(msGlyphs, index);
-            var msRecs = Font.recs(msFont);
-            msRecs = Rectangle.reinterpret(msRecs, index + 1, arena, (p) -> {
+            var msGlyph = Rayliib.GlyphInfo.asSlice(msGlyphs, index);
+            var msRecs = Rayliib.Font.recs(msFont);
+            msRecs = Rayliib.Rectangle.reinterpret(msRecs, index + 1, arena, (p) -> {
             });
-            var msRec = Rectangle.asSlice(msRecs, index);
+            var msRec = Rayliib.Rectangle.asSlice(msRecs, index);
 
-            if (GlyphInfo.advanceX(msGlyph) != 0) lineTextWidth += GlyphInfo.advanceX(msGlyph);
-            else lineTextWidth += (Rectangle.width(msRec) + GlyphInfo.offsetX(msGlyph));
+            if (Rayliib.GlyphInfo.advanceX(msGlyph) != 0) lineTextWidth += Rayliib.GlyphInfo.advanceX(msGlyph);
+            else lineTextWidth += (Rayliib.Rectangle.width(msRec) + Rayliib.GlyphInfo.offsetX(msGlyph));
         }
 
         maxTextWidth = Math.max(maxTextWidth, lineTextWidth);
@@ -100,56 +99,56 @@ public class RaylibRenderer {
             Arena arena, // new
             MemorySegment /*(Vector2)*/ position, MemorySegment /*(Camera)*/ camera,
             int screenWidth, int screenHeight, float zDistance) {
-        var ray = Ray.allocate(arena);
+        var ray = Rayliib.Ray.allocate(arena);
 
         // Calculate normalized device coordinates
         // NOTE: y value is negative
-        float x = (2.0f * Vector2.x(position)) / (float) screenWidth - 1.0f;
-        float y = 1.0f - (2.0f * Vector2.y(position)) / (float) screenHeight;
+        float x = (2.0f * Rayliib.Vector2.x(position)) / (float) screenWidth - 1.0f;
+        float y = 1.0f - (2.0f * Rayliib.Vector2.y(position)) / (float) screenHeight;
         float z = 1.0f;
 
         // Store values in a vector
-        var deviceCoords = Vector3.allocate(arena);
+        var deviceCoords = Rayliib.Vector3.allocate(arena);
 //        { x, y, z };
-        Vector3.x(deviceCoords, x);
-        Vector3.x(deviceCoords, y);
-        Vector3.x(deviceCoords, z);
+        Rayliib.Vector3.x(deviceCoords, x);
+        Rayliib.Vector3.x(deviceCoords, y);
+        Rayliib.Vector3.x(deviceCoords, z);
 
         // Calculate view matrix from camera look at
         var msMatView = MatrixLookAt(arena,
-                Camera.position(camera), Camera.target(camera), Camera.up(camera));
+                Rayliib.Camera.position(camera), Rayliib.Camera.target(camera), Rayliib.Camera.up(camera));
 
         var msMMatProj = MatrixIdentity(arena);
 
-        if (Camera.projection(camera) == CAMERA_PERSPECTIVE()) {
+        if (Rayliib.Camera.projection(camera) == CAMERA_PERSPECTIVE()) {
             // Calculate projection matrix from perspective
-            msMMatProj = MatrixPerspective(arena, Camera.fovy(camera) * DEG2RAD(),
+            msMMatProj = MatrixPerspective(arena, Rayliib.Camera.fovy(camera) * DEG2RAD(),
                     ((double) screenWidth / (double) screenHeight), 0.01f, zDistance);
-        } else if (Camera.projection(camera) == CAMERA_ORTHOGRAPHIC()) {
+        } else if (Rayliib.Camera.projection(camera) == CAMERA_ORTHOGRAPHIC()) {
             double aspect = (double) screenWidth / (double) screenHeight;
-            double top = Camera.fovy(camera) / 2.0;
+            double top = Rayliib.Camera.fovy(camera) / 2.0;
             double right = top * aspect;
 
             // Calculate projection matrix from orthographic
             msMMatProj = MatrixOrtho(arena, -right, right, -top, top, 0.01, 1000.0);
         }
-        var tmpV3 = Vector3.allocate(arena);
-        Vector3.x(tmpV3, Vector3.x(deviceCoords));
-        Vector3.y(tmpV3, Vector3.y(deviceCoords));
-        Vector3.z(tmpV3, 0);
+        var tmpV3 = Rayliib.Vector3.allocate(arena);
+        Rayliib.Vector3.x(tmpV3, Rayliib.Vector3.x(deviceCoords));
+        Rayliib.Vector3.y(tmpV3, Rayliib.Vector3.y(deviceCoords));
+        Rayliib.Vector3.z(tmpV3, 0);
         // Unproject far/near points
         var nearPoint = Vector3Unproject(arena, tmpV3, msMMatProj, msMatView);
 
-        Vector3.z(tmpV3, 1.0f);
+        Rayliib.Vector3.z(tmpV3, 1.0f);
         var farPoint = Vector3Unproject(arena, tmpV3, msMMatProj, msMatView);
 
         // Calculate normalized direction vector
         var direction = Vector3Normalize(arena, Vector3Subtract(arena, farPoint, nearPoint));
 
-        Ray.position(ray, farPoint);
+        Rayliib.Ray.position(ray, farPoint);
 
         // Apply calculated vectors to ray
-        Ray.direction(ray, direction);
+        Rayliib.Ray.direction(ray, direction);
 
         return ray;
     }
@@ -220,7 +219,7 @@ public class RaylibRenderer {
                     case CLAY_RENDER_COMMAND_TYPE_TEXT: {
 //                    var msTxtData = Clay_RenderCommand.renderData(msRC);
                         var fontId = Clay_TextRenderData.fontId(renderData);
-                        var msFontToUse = Font.asSlice(fonts, fontId);
+                        var msFontToUse = Rayliib.Font.asSlice(fonts, fontId);
 
                         var msContents = Clay_TextRenderData.stringContents(renderData);
                         var msChars = Clay_StringSlice.chars(msContents);
@@ -240,12 +239,12 @@ public class RaylibRenderer {
                         // Raylib uses standard C strings so isn't compatible with cheap slices, we need to clone the string to append null terminator
 //                    memcpy(temp_render_buffer, textData->stringContents.chars, textData->stringContents.length);
 //                    temp_render_buffer[textData->stringContents.length] = '\0';
-                        var v2 = Vector2.allocate(arena);
-                        Vector2.x(v2, bbX);
-                        Vector2.y(v2, bbY);
+                        var v2 = Rayliib.Vector2.allocate(arena);
+                        Rayliib.Vector2.x(v2, bbX);
+                        Rayliib.Vector2.y(v2, bbY);
 
 //                    CLAY_COLOR_TO_RAYLIB_COLOR(color) (Color) { .r = (unsigned char)roundf(color.r), .g = (unsigned char)roundf(color.g), .b = (unsigned char)roundf(color.b), .a = (unsigned char)roundf(color.a) }
-                        var rayColor = Color.allocate(arena);
+                        var rayColor = Rayliib.Color.allocate(arena);
                         var txtColor = Clay_TextRenderData.textColor(renderData);
                         ClayColorToRaylibColor(txtColor, rayColor);
                         DrawTextEx(msFontToUse, msTemp, v2, (float) Clay_TextRenderData.fontSize(renderData),
@@ -256,7 +255,7 @@ public class RaylibRenderer {
                     }
                     case CLAY_RENDER_COMMAND_TYPE_IMAGE:// ClayFFM.CLAY_RENDER_COMMAND_TYPE_IMAGE(): {
                         var imageData = Clay_ImageRenderData.imageData(renderData);
-                        var imageTexture = Texture2D.reinterpret(imageData, arena, (p) -> {
+                        var imageTexture = Rayliib.Texture2D.reinterpret(imageData, arena, (p) -> {
                         });
                         var tintColor = Clay_ImageRenderData.backgroundColor(imageData);
                         if (Clay_Color.r(tintColor) == 0 && Clay_Color.g(tintColor) == 0 && Clay_Color.b(tintColor) == 0 && Clay_Color.a(tintColor) == 0) {
@@ -265,19 +264,19 @@ public class RaylibRenderer {
                             Clay_Color.b(tintColor, 255);
                             Clay_Color.a(tintColor, 255);
                         }
-                        var rect = Rectangle.allocate(arena);
-                        var boundRect = Rectangle.allocate(arena);
-                        Rectangle.x(boundRect, bbX);
-                        Rectangle.y(boundRect, bbX);
-                        Rectangle.width(boundRect, bbWidth);
-                        Rectangle.height(boundRect, bbHeight);
-                        Rectangle.x(rect, 0);
-                        Rectangle.y(rect, 0);
-                        Rectangle.width(rect, Texture2D.width(imageTexture));
-                        Rectangle.height(rect, Texture2D.height(imageTexture));
-                        var rayColor = Color.allocate(arena);
+                        var rect = Rayliib.Rectangle.allocate(arena);
+                        var boundRect = Rayliib.Rectangle.allocate(arena);
+                        Rayliib.Rectangle.x(boundRect, bbX);
+                        Rayliib.Rectangle.y(boundRect, bbX);
+                        Rayliib.Rectangle.width(boundRect, bbWidth);
+                        Rayliib.Rectangle.height(boundRect, bbHeight);
+                        Rayliib.Rectangle.x(rect, 0);
+                        Rayliib.Rectangle.y(rect, 0);
+                        Rayliib.Rectangle.width(rect, Rayliib.Texture2D.width(imageTexture));
+                        Rayliib.Rectangle.height(rect, Rayliib.Texture2D.height(imageTexture));
+                        var rayColor = Rayliib.Color.allocate(arena);
                         ClayColorToRaylibColor(tintColor, rayColor);
-                        var emptyV2 = Vector2.allocate(arena);
+                        var emptyV2 = Rayliib.Vector2.allocate(arena);
                         emptyV2.fill((byte) 0);
                         DrawTexturePro(imageTexture, rect, boundRect, emptyV2,
                                 0, rayColor);
@@ -293,16 +292,16 @@ public class RaylibRenderer {
                     case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
                         var cornerRadius = Clay_RectangleRenderData.cornerRadius(renderData);
                         var clayBgc = Clay_RectangleRenderData.backgroundColor(renderData);
-                        var bgColor = Color.allocate(arena);
+                        var bgColor = Rayliib.Color.allocate(arena);
                         ClayColorToRaylibColor(clayBgc, bgColor);
 
                         if (Clay_CornerRadius.topLeft(cornerRadius) > 0) {
                             float radius = (Clay_CornerRadius.topLeft(cornerRadius) * 2) / (float) (Math.min(bbWidth, bbHeight));
-                            var rectBB = Rectangle.allocate(arena);
-                            Rectangle.x(rectBB, bbX);
-                            Rectangle.y(rectBB, bbY);
-                            Rectangle.width(rectBB, bbWidth);
-                            Rectangle.height(rectBB, bbHeight);
+                            var rectBB = Rayliib.Rectangle.allocate(arena);
+                            Rayliib.Rectangle.x(rectBB, bbX);
+                            Rayliib.Rectangle.y(rectBB, bbY);
+                            Rayliib.Rectangle.width(rectBB, bbWidth);
+                            Rayliib.Rectangle.height(rectBB, bbHeight);
                             DrawRectangleRounded(rectBB, radius, 8, bgColor);
                         } else {
                             DrawRectangle(bbX, bbY, bbWidth, bbHeight, bgColor);
@@ -314,7 +313,7 @@ public class RaylibRenderer {
                     var bw = Clay_BorderRenderData.width(renderData);
                     var cornerRadius = Clay_BorderRenderData.cornerRadius(renderData);
                     var clayColor = Clay_BorderRenderData.color(renderData);
-                    var color = Color.allocate(arena);
+                    var color = Rayliib.Color.allocate(arena);
                     ClayColorToRaylibColor(clayColor, color);
                         // Left border
                     if (Clay_BorderWidth.left(bw) > 0) {
@@ -342,30 +341,30 @@ public class RaylibRenderer {
                                 Math.round(Clay_BoundingBox.width(msBB) - Clay_CornerRadius.bottomLeft(cornerRadius) - Clay_CornerRadius.bottomRight(cornerRadius)),
                                 Clay_BorderWidth.bottom(bw), color);
                     }
-                    var center = Vector2.allocate(arena);
+                    var center = Rayliib.Vector2.allocate(arena);
                     if (Clay_CornerRadius.topLeft(cornerRadius) > 0) {
-                        Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_CornerRadius.topLeft(cornerRadius)));
-                        Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_CornerRadius.topLeft(cornerRadius)));
+                        Rayliib.Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_CornerRadius.topLeft(cornerRadius)));
+                        Rayliib.Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_CornerRadius.topLeft(cornerRadius)));
 
                         DrawRing(center, Math.round(Clay_CornerRadius.topLeft(cornerRadius) - Clay_BorderWidth.top(bw)),
                                 Clay_CornerRadius.topLeft(cornerRadius), 180, 270, 10, color);
                     }
                     if (Clay_CornerRadius.topRight(cornerRadius) > 0) {
-                        Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_BoundingBox.width(msBB) - Clay_CornerRadius.topRight(cornerRadius)));
-                        Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_CornerRadius.topRight(cornerRadius)));
+                        Rayliib.Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_BoundingBox.width(msBB) - Clay_CornerRadius.topRight(cornerRadius)));
+                        Rayliib.Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_CornerRadius.topRight(cornerRadius)));
 
                         DrawRing(center, Math.round(Clay_CornerRadius.topRight(cornerRadius) - Clay_BorderWidth.top(bw)),
                                 Clay_CornerRadius.topRight(cornerRadius), 270, 360, 10, color);
                     }
                     if (Clay_CornerRadius.bottomLeft(cornerRadius) > 0) {
-                        Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_CornerRadius.bottomLeft(cornerRadius)));
-                        Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_BoundingBox.height(msBB) - Clay_CornerRadius.bottomLeft(cornerRadius)));
+                        Rayliib.Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_CornerRadius.bottomLeft(cornerRadius)));
+                        Rayliib.Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_BoundingBox.height(msBB) - Clay_CornerRadius.bottomLeft(cornerRadius)));
                         DrawRing(center, Math.round(Clay_CornerRadius.bottomLeft(cornerRadius) - Clay_BorderWidth.bottom(bw)),
                                 Clay_CornerRadius.bottomLeft(cornerRadius), 90, 180, 10, color);
                     }
                     if (Clay_CornerRadius.bottomRight(cornerRadius) > 0) {
-                        Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_BoundingBox.width(msBB) - Clay_CornerRadius.bottomRight(cornerRadius)));
-                        Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_BoundingBox.height(msBB) - Clay_CornerRadius.bottomRight(cornerRadius)));
+                        Rayliib.Vector2.x(center, Math.round(Clay_BoundingBox.x(msBB) + Clay_BoundingBox.width(msBB) - Clay_CornerRadius.bottomRight(cornerRadius)));
+                        Rayliib.Vector2.y(center, Math.round(Clay_BoundingBox.y(msBB) + Clay_BoundingBox.height(msBB) - Clay_CornerRadius.bottomRight(cornerRadius)));
 
                         DrawRing(center, Math.round(Clay_CornerRadius.bottomRight(cornerRadius) - Clay_BorderWidth.bottom(bw)),
                                 Clay_CornerRadius.bottomRight(cornerRadius), 0.1f, 90, 10, color);

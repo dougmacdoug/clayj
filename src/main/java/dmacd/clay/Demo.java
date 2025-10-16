@@ -2,14 +2,11 @@ package dmacd.clay;
 
 import dmacd.clay.demo.*;
 import dmacd.ffm.clay.*;
-import dmacd.ffm.raylib.Color;
-import dmacd.ffm.raylib.Font;
-import dmacd.ffm.raylib.Vector2;
+import dmacd.ffm.raylib.Rayliib;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static dmacd.clay.Clay.*;
@@ -18,18 +15,16 @@ import static dmacd.ffm.clay.ClayFFM.*;
 import static dmacd.ffm.raylib.RayFFM.*;
 
 public class Demo {
-    public static final MemorySegment STR_ROBOTO_FONT_PATH = SHARED_C_STRING("resources/Roboto-Regular.ttf");
+    // todo: add to clayffm
+    public final static  int CLAY_LEFT_TO_RIGHT = 0;
+    public final static  int CLAY_TOP_TO_BOTTOM = 1;
+
+    public static final MemorySegment STR_ROBOTO_FONT_PATH = Arena.global().allocateFrom("resources/Roboto-Regular.ttf");
     static final int FONT_ID_BODY_16 = 0;
-    static final MemorySegment CLAY_COLOR_WHITE = SHARED_COLOR(255, 255, 255, 255);
-    static final MemorySegment BLACK = Color.allocate(SHARED_ARENA); // raylib color
+    static final MemorySegment CLAY_COLOR_WHITE = GLOBAL_CLAY_COLOR(255, 255, 255, 255);
+    static final MemorySegment BLACK = GLOBAL_RAYLIB_COLOR(0,0,0,255); // raylib color
 
     static final Clay.Color COLOR_WHITE = new Clay.Color(255, 255, 255,255);
-    static {
-        Color.r(BLACK, (byte) 0);
-        Color.g(BLACK, (byte) 0);
-        Color.b(BLACK, (byte) 0);
-        Color.a(BLACK, (byte) 0xFF);
-    }
 //    void RenderHeaderButton(Clay_String text) {
 //        CLAY({
 //                .layout = { .padding = { 16, 16, 8, 8 }},
@@ -49,8 +44,8 @@ public class Demo {
         System.loadLibrary("raylib");
     }
 
-    static MemorySegment documentsRaw = Document.allocateArray(5, SHARED_ARENA);
-    static MemorySegment documents = DocumentArray.allocate(SHARED_ARENA);
+    static MemorySegment documentsRaw = Document.allocateArray(5, Arena.global());
+    static MemorySegment documents = DocumentArray.allocate(Arena.global());
 
     static {
         DocumentArray.documents(documents, documentsRaw);
@@ -58,10 +53,10 @@ public class Demo {
     }
 
     static void intoClayString(MemorySegment clayStr, String str) {
-        var cstr = SHARED_C_STRING(str);
+        var cstr = Arena.global().allocateFrom(str);
         Clay_String.chars(clayStr, cstr);
         Clay_String.length(clayStr, (int) cstr.byteSize() - 1);
-        Clay_String.isStaticallyAllocated(clayStr, true);
+        Clay_String.isStaticallyAllocated(clayStr, false);
     }
 
     static MemorySegment ClayVideoDemo_Initialize() {
@@ -125,9 +120,9 @@ public class Demo {
         intoClayString(Document.title(doc), "Article 5");
         intoClayString(Document.contents(doc), "Article 5");
 
-        var data = ClayVideoDemo_Data.allocate(SHARED_ARENA);
+        var data = ClayVideoDemo_Data.allocate(Arena.global());
         var frameArena = ClayVideoDemo_Data.frameArena(data);
-        MEMORY_ADDRESS = SHARED_ARENA.allocate(1024).address();
+        MEMORY_ADDRESS = Arena.global().allocate(1024).address();
         ClayVideoDemo_Arena.memory(frameArena, MEMORY_ADDRESS);
         return data;
     }
@@ -140,16 +135,16 @@ static long MEMORY_ADDRESS;
 
         try (Arena arena = Arena.ofConfined()) {
             Clay.initialize(arena);
-            var fonts = Font.allocateArray(1, arena);
+            var fonts = Rayliib.Font.allocateArray(1, arena);
             // technically same address
             var font = LoadFontEx(arena, STR_ROBOTO_FONT_PATH, 48,
                     MemorySegment.NULL, 400);
-            MemorySegment.copy(font, 0, fonts, 0, Font.layout().byteSize());
+            MemorySegment.copy(font, 0, fonts, 0, Rayliib.Font.layout().byteSize());
 
-            font = Font.asSlice(fonts, FONT_ID_BODY_16);
+            font = Rayliib.Font.asSlice(fonts, FONT_ID_BODY_16);
 //         *     printf("font %p", &fonts[FONT_ID_BODY_16]);
 //         *     printf("font %p", &fonts[FONT_ID_BODY_16].texture);
-            SetTextureFilter(Font.texture(font), TEXTURE_FILTER_BILINEAR());
+            SetTextureFilter(Rayliib.Font.texture(font), TEXTURE_FILTER_BILINEAR());
 
             long clayRequiredMemory = Clay_MinMemorySize();
             var clayMemoryTop = Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory,
@@ -192,33 +187,28 @@ static long MEMORY_ADDRESS;
             return;
         }
    }
-    static MemorySegment layoutDimensions = Clay_Dimensions.allocate(SHARED_ARENA);
-    static final MemorySegment mousePosition = Vector2.allocate(SHARED_ARENA);
-    static final MemorySegment mouseScroll = Vector2.allocate(SHARED_ARENA);
-    static final MemorySegment pointerState = Clay_Vector2.allocate(SHARED_ARENA);
-    static final MemorySegment scrollState = Clay_Vector2.allocate(SHARED_ARENA);
+//    static MemorySegment layoutDimensions = Clay_Dimensions.allocate(SHARED_ARENA);
+    static final MemorySegment mousePosition = Rayliib.Vector2.allocate(Arena.global());
+    static final MemorySegment mouseScroll = Rayliib.Vector2.allocate(Arena.global());
+//    static final MemorySegment pointerState = Clay_Vector2.allocate(SHARED_ARENA);
+//    static final MemorySegment scrollState = Clay_Vector2.allocate(SHARED_ARENA);
 
    static
 /*    Clay_RenderCommandArray */ MemorySegment
     CreateLayout(MemorySegment context, /*(ClayVideoDemo_Data *)*/ MemorySegment data) {
         Clay_SetCurrentContext(context);
         Clay_SetDebugModeEnabled(true);
-        // Run once per frame
-       Clay_Dimensions.width(layoutDimensions, GetScreenWidth());
-       Clay_Dimensions.height(layoutDimensions, GetScreenHeight() / 2);
-       Clay_SetLayoutDimensions(layoutDimensions);
+
+       Clay_SetLayoutDimensions(Dimensions.of(GetScreenWidth(), GetScreenHeight() / 2));
        MemorySegment mp = GetMousePosition((a,b) ->mousePosition);
 
-        Vector2.y(mp, Vector2.y(mp) - ClayVideoDemo_Data.yOffset(data));
+        Rayliib.Vector2.y(mp, Rayliib.Vector2.y(mp) - ClayVideoDemo_Data.yOffset(data));
         var scrollDelta = GetMouseWheelMoveV((a,b)->mouseScroll);
-       Clay_Vector2.x(pointerState, Vector2.x(mp));
-       Clay_Vector2.y(pointerState, Vector2.y(mp));
-       Clay_SetPointerState(pointerState, IsMouseButtonDown(0));
 
-       Clay_Vector2.x(scrollState, Vector2.x(scrollDelta));
-       Clay_Vector2.y(scrollState, Vector2.y(scrollDelta));
-        Clay_UpdateScrollContainers(true, scrollState, GetFrameTime());
-        return ClayVideoDemo_CreateLayout(data);
+       Clay_SetPointerState(Vector2.fromRaylib(mp), IsMouseButtonDown(0));
+       var scrollState = Vector2.fromRaylib(scrollDelta);
+       Clay_UpdateScrollContainers(true, scrollState, GetFrameTime());
+       return ClayVideoDemo_CreateLayout(data);
     }
 
     static void RenderDropdownMenuItem(String str) {
@@ -295,7 +285,7 @@ static long MEMORY_ADDRESS;
                                             .height(CLAY_SIZING_FIXED(60))
                                             .width(CLAY_SIZING_GROW(0))
                                     )
-                                    .padding(16, 16, 0, 0)
+                                    .padding(16, 16, 8, 8)
                                     .childGap(16)
                             // todo: childAlignment
 //                    .childAlignment(a->a) = {
@@ -388,7 +378,7 @@ static long MEMORY_ADDRESS;
                                 var offset = ClayVideoDemo_Arena.offset(frameArena);
                                 var memAddr = ClayVideoDemo_Arena.memory(frameArena);
                                 var memory = MemorySegment.ofAddress(memAddr);
-                                memory = memory.reinterpret(1024, SHARED_ARENA, p->{});
+                                memory = memory.reinterpret(1024, Arena.global(), p->{});
                                 var chunkSize = SidebarClickData.layout().byteSize();
                                 var clickData = memory.asSlice(offset, chunkSize);
 
@@ -446,5 +436,4 @@ static long MEMORY_ADDRESS;
         }
         return renderCommands;
     }
-
 }

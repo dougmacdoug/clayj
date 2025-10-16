@@ -1,21 +1,16 @@
 package dmacd.clay;
 
 
-import dmacd.clay.renderer.RaylibRenderer;
 import dmacd.ffm.clay.*;
-import dmacd.ffm.raylib.Color;
 import dmacd.ffm.raylib.RayFFM;
+import dmacd.ffm.raylib.Rayliib;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 
 import static dmacd.clay.Clay.*;
-import static dmacd.clay.renderer.RaylibRenderer.Raylib_MeasureText;
-import static dmacd.ffm.raylib.RayFFM.DrawText;
-import static dmacd.ffm.raylib.RayFFM.LoadFont;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -74,18 +69,18 @@ public class Main {
             RayFFM.SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
             //--------------------------------------------------------------------------------------
             RayFFM.InitWindow(800, 600, arena.allocateFrom("hello there"));
-            var bgColor = Color.allocate(arena);
+            var bgColor = Rayliib.Color.allocate(arena);
 
-            var fgColor = Color.allocate(arena);
+            var fgColor = Rayliib.Color.allocate(arena);
 
-            Color.r(bgColor, (byte)0x18);
-            Color.g(bgColor, (byte)0x18);
-            Color.b(bgColor, (byte)0x18);
+            Rayliib.Color.r(bgColor, (byte)0x18);
+            Rayliib.Color.g(bgColor, (byte)0x18);
+            Rayliib.Color.b(bgColor, (byte)0x18);
 
-            Color.r(fgColor, (byte)0xFF);
-            Color.g(fgColor, (byte)0xEE);
-            Color.b(fgColor, (byte)0xEE);
-            Color.a(fgColor, (byte)0xFF);
+            Rayliib.Color.r(fgColor, (byte)0xFF);
+            Rayliib.Color.g(fgColor, (byte)0xEE);
+            Rayliib.Color.b(fgColor, (byte)0xEE);
+            Rayliib.Color.a(fgColor, (byte)0xFF);
 
             var txtmem = arena.allocate(256);
             var renderCommandArray = Clay_RenderCommandArray.allocate(arena);
@@ -112,9 +107,9 @@ public class Main {
 
 
                 RayFFM.ClearBackground(bgColor);
-                Color.a(fgColor, (byte)100);
+                Rayliib.Color.a(fgColor, (byte)100);
                 RayFFM.DrawText(txtmem, 10, 20, 20, fgColor);
-                Color.a(fgColor, (byte)255);
+                Rayliib.Color.a(fgColor, (byte)255);
                 RayFFM.DrawText(txtmem, 10, 20, 20, fgColor);
 
                 RayFFM.EndDrawing();
