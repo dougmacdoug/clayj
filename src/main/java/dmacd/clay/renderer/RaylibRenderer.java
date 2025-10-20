@@ -4,6 +4,9 @@ import dmacd.ffm.clay.*;
 import dmacd.ffm.raylib.*;
 
 import java.lang.foreign.*;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 
 import static dmacd.ffm.clay.ClayFFM.*;
 import static dmacd.ffm.raylib.RayFFM.*;
@@ -21,8 +24,8 @@ public class RaylibRenderer {
         Rayliib.Color.b(raylibColor, (byte) b);
         Rayliib.Color.a(raylibColor, (byte) a);
     }
-    // copied from clay_renderer. converted from C to Java FFM
 
+    // copied from clay_renderer. converted from C to Java FFM
     public static /* Clay_Dimensions */ MemorySegment Raylib_MeasureText(Arena arena,
             /* (Clay_StringSlice) */ MemorySegment text,
             /* (Clay_TextElementConfig *) */  MemorySegment config,
@@ -90,7 +93,6 @@ public class RaylibRenderer {
         var letterSpacing = Clay_TextElementConfig.letterSpacing(msConfig);
         Clay_Dimensions.width(msTextSize, maxTextWidth * scaleFactor + (lineCharCount * letterSpacing));
         Clay_Dimensions.height(msTextSize, textHeight);
-
         return msTextSize;
     }
 
@@ -203,9 +205,7 @@ public class RaylibRenderer {
             var renderCommandsLength = Clay_RenderCommandArray.length(renderCommands);
             for (int j = 0; j < renderCommandsLength; j++) {
                 var /*(Clay_RenderCommand *)*/ msRC = Clay_RenderCommandArray_Get(renderCommands, j);
-//                msRC = renderCommands.get(ValueLayout.ADDRESS, 0);
-                msRC = Clay_RenderCommand.reinterpret(msRC, arena, (p) -> {
-                });
+                msRC = Clay_RenderCommand.reinterpret(msRC, arena, p->{});
                 var msBB = Clay_RenderCommand.boundingBox(msRC);
                 var bbX = Math.round(Clay_BoundingBox.x(msBB));
                 var bbY = Math.round(Clay_BoundingBox.y(msBB));

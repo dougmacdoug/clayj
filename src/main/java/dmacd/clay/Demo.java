@@ -1,6 +1,7 @@
 package dmacd.clay;
 
 import dmacd.clay.demo.*;
+import dmacd.clay.renderer.RaylibRenderer;
 import dmacd.ffm.clay.*;
 import dmacd.ffm.raylib.Rayliib;
 
@@ -18,7 +19,7 @@ public class Demo {
     // todo: add to clayffm
     public final static  int CLAY_LEFT_TO_RIGHT = 0;
     public final static  int CLAY_TOP_TO_BOTTOM = 1;
-
+    public final static  int CLAY_ALIGN_Y_CENTER = 2;
     public static final MemorySegment STR_ROBOTO_FONT_PATH = Arena.global().allocateFrom("resources/Roboto-Regular.ttf");
     static final int FONT_ID_BODY_16 = 0;
     static final MemorySegment CLAY_COLOR_WHITE = GLOBAL_CLAY_COLOR(255, 255, 255, 255);
@@ -129,11 +130,9 @@ public class Demo {
 static long MEMORY_ADDRESS;
 
     public static void main(String argv[]) {
-
-        Clay_Raylib_Initialize(1024, 768, Arena.global().allocateFrom("Introducing Clay Demo"),
-                FLAG_WINDOW_RESIZABLE() | FLAG_WINDOW_HIGHDPI() | FLAG_MSAA_4X_HINT() | FLAG_VSYNC_HINT()); // Extra parameters to this function are new since the video was published
-
         try (Arena arena = Arena.ofConfined()) {
+            Clay_Raylib_Initialize(1024, 768, arena.allocateFrom("Introducing Clay Demo"),
+                    FLAG_WINDOW_RESIZABLE() | FLAG_WINDOW_HIGHDPI() | FLAG_MSAA_4X_HINT() | FLAG_VSYNC_HINT()); // Extra parameters to this function are new since the video was published
             Clay.initialize(arena);
             var fonts = Rayliib.Font.allocateArray(1, arena);
             // technically same address
@@ -142,16 +141,12 @@ static long MEMORY_ADDRESS;
             MemorySegment.copy(font, 0, fonts, 0, Rayliib.Font.layout().byteSize());
 
             font = Rayliib.Font.asSlice(fonts, FONT_ID_BODY_16);
-//         *     printf("font %p", &fonts[FONT_ID_BODY_16]);
-//         *     printf("font %p", &fonts[FONT_ID_BODY_16].texture);
             SetTextureFilter(Rayliib.Font.texture(font), TEXTURE_FILTER_BILINEAR());
 
             long clayRequiredMemory = Clay_MinMemorySize();
             var clayMemoryTop = Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory,
                     arena.allocate(clayRequiredMemory));
-            var dims = Clay_Dimensions.allocate(arena);
-            Clay_Dimensions.width(dims, GetScreenWidth());
-            Clay_Dimensions.height(dims, GetScreenHeight() / 2);
+            var dims = Dimensions.of( GetScreenWidth(), GetScreenHeight() / 2);
             var errHandler = Clay_ErrorHandler.allocate(arena);
             var errFunc = Clay_ErrorHandler.errorHandlerFunction.allocate(Clay::errorHandler, arena);
             Clay_ErrorHandler.errorHandlerFunction(errHandler, errFunc);
@@ -162,7 +157,7 @@ static long MEMORY_ADDRESS;
             var measureTextFunc = Clay_SetMeasureTextFunction$measureTextFunction.allocate((a, b, c) -> {
                 return Raylib_MeasureText(arena, a, b, c);
             }, arena);
-            Clay_SetMeasureTextFunction(measureTextFunc, font);
+            Clay_SetMeasureTextFunction(measureTextFunc, fonts);
 
             var clayMemoryBottom = Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory, arena.allocate(clayRequiredMemory));
             // todo: in practice, possibly better to clone dims
@@ -171,6 +166,7 @@ static long MEMORY_ADDRESS;
             Clay_SetMeasureTextFunction(measureTextFunc, fonts);
 
             while (!WindowShouldClose()) {
+                beginRenderLoop();
                 ClayVideoDemo_Data.yOffset(dataBottom, (float) (GetScreenHeight() / 2));
                 var renderCommandsTop = CreateLayout(clayContextTop, dataTop); //Clay_RenderCommandArray
                 var renderCommandsBottom = CreateLayout(clayContextBottom, dataBottom);
@@ -179,12 +175,14 @@ static long MEMORY_ADDRESS;
                 Clay_Raylib_Render(renderCommandsTop, fonts);
                 Clay_Raylib_Render(renderCommandsBottom, fonts);
                 EndDrawing();
+// todo: more clay methods (isdebugvis etc)
+                if (IsKeyDown(301)) { // f12
+                    showDebug = !showDebug;
+                }
+//                if(Clay_)
             }
 
             Clay_Raylib_Close();
-
-
-            return;
         }
    }
 //    static MemorySegment layoutDimensions = Clay_Dimensions.allocate(SHARED_ARENA);
@@ -192,22 +190,22 @@ static long MEMORY_ADDRESS;
     static final MemorySegment mouseScroll = Rayliib.Vector2.allocate(Arena.global());
 //    static final MemorySegment pointerState = Clay_Vector2.allocate(SHARED_ARENA);
 //    static final MemorySegment scrollState = Clay_Vector2.allocate(SHARED_ARENA);
-
+static boolean showDebug = true;
    static
 /*    Clay_RenderCommandArray */ MemorySegment
     CreateLayout(MemorySegment context, /*(ClayVideoDemo_Data *)*/ MemorySegment data) {
         Clay_SetCurrentContext(context);
-        Clay_SetDebugModeEnabled(true);
+        Clay_SetDebugModeEnabled(showDebug);
 
        Clay_SetLayoutDimensions(Dimensions.of(GetScreenWidth(), GetScreenHeight() / 2));
-       MemorySegment mp = GetMousePosition((a,b) ->mousePosition);
+       MemorySegment mp = GetMousePosition((b,a) ->mousePosition);
 
         Rayliib.Vector2.y(mp, Rayliib.Vector2.y(mp) - ClayVideoDemo_Data.yOffset(data));
-        var scrollDelta = GetMouseWheelMoveV((a,b)->mouseScroll);
+        var scrollDelta = GetMouseWheelMoveV((b,a)->mouseScroll);
 
        Clay_SetPointerState(Vector2.fromRaylib(mp), IsMouseButtonDown(0));
-       var scrollState = Vector2.fromRaylib(scrollDelta);
-       Clay_UpdateScrollContainers(true, scrollState, GetFrameTime());
+       Clay_UpdateScrollContainers(true,
+               Vector2.fromRaylib(scrollDelta), GetFrameTime());
        return ClayVideoDemo_CreateLayout(data);
     }
 
@@ -253,11 +251,12 @@ static long MEMORY_ADDRESS;
         }
     }
 
+    // todo: testing
+    static MemorySegment scrollOffset = Clay_Vector2.allocate(Arena.global());
 
     static
     /*Clay_RenderCommandArray*/MemorySegment ClayVideoDemo_CreateLayout(/*(ClayVideoDemo_Data *)*/ MemorySegment data) {
         var frameArena = ClayVideoDemo_Data.frameArena(data);
-//        var selectedDocumentIndex = ClayVideoDemo_Data.selectedDocumentIndex(data);
         ClayVideoDemo_Arena.offset(frameArena, 0);
 
         Clay_BeginLayout();
@@ -281,16 +280,14 @@ static long MEMORY_ADDRESS;
             // Child elements go inside braces
             CLAY(id("HeaderBar")
                     .layout(l -> l
-                                    .sizing(s -> s
-                                            .height(CLAY_SIZING_FIXED(60))
-                                            .width(CLAY_SIZING_GROW(0))
-                                    )
-                                    .padding(16, 16, 8, 8)
-                                    .childGap(16)
-                            // todo: childAlignment
-//                    .childAlignment(a->a) = {
-//                        .y = CLAY_ALIGN_Y_CENTER
-//                    }
+                            .sizing(s -> s
+                                    .height(CLAY_SIZING_FIXED(60))
+                                    .width(CLAY_SIZING_GROW(0))
+                            )
+                            .padding(16, 16, 0, 0)
+                            .childGap(16)
+                            .childAlignment(a -> a
+                                    .y(CLAY_ALIGN_Y_CENTER))
                     )
                     .backgroundColor(contentBackgroundColor)
                     .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
@@ -337,77 +334,78 @@ static long MEMORY_ADDRESS;
                             });
                         });// filemenu
                     }
+                }); // end file button
+                RenderHeaderButton("Edit");
+                CLAY(id("").layout(l -> l.sizing(CLAY_SIZING_GROW(0))), ()->{});
+                RenderHeaderButton("Upload");
+                RenderHeaderButton("Media");
+                RenderHeaderButton("Support");
+            }); // end header bar
 
-                    RenderHeaderButton("Edit");
-                    CLAY(id("").layout(l -> l.sizing(CLAY_SIZING_GROW(0))), () -> {
-                    });
-                    RenderHeaderButton("Upload");
-                    RenderHeaderButton("Media");
-                    RenderHeaderButton("Support");
-                }); // end header bar
+            CLAY(id("LowerContent")
+                    .layout(l -> l.sizing(layoutExpand).childGap(16)), () -> {
+                CLAY(id("Sidebar")
+                        .backgroundColor(contentBackgroundColor)
+                        .layout(l -> l
+                                .layoutDirection(CLAY_TOP_TO_BOTTOM)
+                                .padding(CLAY_PADDING_ALL(16))
+                                .childGap(8)
+                                .sizing(s -> s
+                                        .width(CLAY_SIZING_FIXED(250))
+                                        .height(CLAY_SIZING_GROW(0))
+                                )), () -> {
+                    Function<LayoutConfig, LayoutConfig> sidebarButtonLayout = l -> l
+                            .sizing(s -> s.width(CLAY_SIZING_GROW(0)))
+                            .padding(CLAY_PADDING_ALL(16));
+                    for (int i = 0; i < 5; i++) {
+                        var docs = DocumentArray.documents(documents);
+                        var document = Document.asSlice(docs, i);
 
-                CLAY(id("LowerContent")
-                        .layout(l -> l.sizing(layoutExpand).childGap(16)), () -> {
-                    CLAY(id("Sidebar")
-                            .backgroundColor(contentBackgroundColor)
-                            .layout(l -> l
-                                    .layoutDirection(CLAY_TOP_TO_BOTTOM)
-                                    .padding(CLAY_PADDING_ALL(16))
-                                    .childGap(8)
-                                    .sizing(s -> s
-                                            .width(CLAY_SIZING_FIXED(250))
-                                            .height(CLAY_SIZING_GROW(0))
-                                    )), () -> {
-                        Function<LayoutConfig, LayoutConfig> sidebarButtonLayout = l -> l
-                                .sizing(s -> s.width(CLAY_SIZING_GROW(0)))
-                                .padding(CLAY_PADDING_ALL(16));
-                        for (int i = 0; i < 5; i++) {
-                            var docs = DocumentArray.documents(documents);
-                            var document = Document.asSlice(docs, i);
+                        if (i == ClayVideoDemo_Data.selectedDocumentIndex(data)) {
+                            CLAY(id("").layout(sidebarButtonLayout)
+                                    .backgroundColor(120, 120, 120, 255)
+                                    .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
 
-                            if (i == ClayVideoDemo_Data.selectedDocumentIndex(data)) {
-                                CLAY(id("").layout(sidebarButtonLayout)
-                                        .backgroundColor(120, 120, 120, 255)
-                                        .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
-                                    CLAY_TEXT(Document.title(document), cfg -> cfg
-                                            .fontId(FONT_ID_BODY_16)
-                                            .fontSize(20)
-                                            .textColor(255, 255, 255, 255));
-                                });
-                            } else {
-                                var offset = ClayVideoDemo_Arena.offset(frameArena);
-                                var memAddr = ClayVideoDemo_Arena.memory(frameArena);
-                                var memory = MemorySegment.ofAddress(memAddr);
-                                memory = memory.reinterpret(1024, Arena.global(), p->{});
-                                var chunkSize = SidebarClickData.layout().byteSize();
-                                var clickData = memory.asSlice(offset, chunkSize);
+                                CLAY_TEXT(Document.title(document), cfg -> cfg
+                                        .fontId(FONT_ID_BODY_16)
+                                        .fontSize(20)
+                                        .textColor(255, 255, 255, 255));
+                            });
+                        } else {
+                            // todo: little bit cleaner
+                            var offset = ClayVideoDemo_Arena.offset(frameArena);
+                            var memAddr = ClayVideoDemo_Arena.memory(frameArena);
+                            var memory = MemorySegment.ofAddress(memAddr);
+                            memory = memory.reinterpret(1024, Arena.global(), p -> {
+                            });
+                            var chunkSize = SidebarClickData.layout().byteSize();
+                            var clickData = memory.asSlice(offset, chunkSize);
 
-                                var selectedDocIndexPtr = data.asSlice(ClayVideoDemo_Data.selectedDocumentIndex$offset(), ValueLayout.JAVA_INT);
-//        *clickData = (SidebarClickData) { .requestedDocumentIndex = i, .selectedDocumentIndex = &data->selectedDocumentIndex };
-//        data->frameArena.offset += sizeof(SidebarClickData);
-                                SidebarClickData.requestedDocumentIndex(clickData, i);
-                                SidebarClickData.selectedDocumentIndex(clickData, selectedDocIndexPtr);
-                                ClayVideoDemo_Arena.offset(frameArena, offset + SidebarClickData.layout().byteSize());
+                            var selectedDocIndexPtr = data.asSlice(ClayVideoDemo_Data.selectedDocumentIndex$offset(), ValueLayout.JAVA_INT);
+                            SidebarClickData.requestedDocumentIndex(clickData, i);
+                            SidebarClickData.selectedDocumentIndex(clickData, selectedDocIndexPtr);
+                            ClayVideoDemo_Arena.offset(frameArena, offset + SidebarClickData.layout().byteSize());
 
-                                CLAY(id("").layout(sidebarButtonLayout)
-                                        .backgroundColor(120, 120, 120, Clay_Hovered() ? 120 : 0)
-                                        .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
-                                    var hoverFunc = Clay_OnHover$onHoverFunction.allocate(Demo::HandleSidebarInteraction, arena());
-                                    Clay_OnHover(hoverFunc, clickData.address());
-                                    CLAY_TEXT(Document.title(document), c -> c
-                                            .fontId(FONT_ID_BODY_16)
-                                            .fontSize(20)
-                                            .textColor(255, 255, 255, 255));
-
-                                });
-                            }
+                            CLAY(id("").layout(sidebarButtonLayout)
+                                    .backgroundColor(120, 120, 120, Clay_Hovered() ? 120 : 0)
+                                    .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
+                                // todo: this is probably burning memory
+                                var hoverFunc = Clay_OnHover$onHoverFunction.allocate(Demo::HandleSidebarInteraction, arena());
+                                Clay_OnHover(hoverFunc, clickData.address());
+                                CLAY_TEXT(Document.title(document), c -> c
+                                        .fontId(FONT_ID_BODY_16)
+                                        .fontSize(20)
+                                        .textColor(255, 255, 255, 255));
+                            });
                         }
-                    });
-                });
-                CLAY(id("MainContent").backgroundColor(contentBackgroundColor)
+                    }
+                }); // end sidebar
+
+                CLAY(id("MainContent")
+                        .backgroundColor(contentBackgroundColor)
                         .clip(c -> c
                                 .vertical(true)
-                                .childOffset(Clay_GetScrollOffset(arena())))
+                                .childOffset(Clay_GetScrollOffset((b, a) -> scrollOffset)))
                         .layout(l -> l
                                 .layoutDirection(CLAY_TOP_TO_BOTTOM)
                                 .childGap(16)
@@ -424,11 +422,11 @@ static long MEMORY_ADDRESS;
                             .fontSize(24)
                             .textColor(COLOR_WHITE));
 
-                });
-            });
-        });
+                }); // end maincontent
+            }); // end lowercontent
+        }); // end outercontainer
 
-        var renderCommands = Clay_EndLayout(arena());
+        var renderCommands = Clay_EndLayout((b,a)->Clay.tempAlloc((int)b));
         for (int i = 0; i < Clay_RenderCommandArray.length(renderCommands); i++) {
             var cmd = Clay_RenderCommandArray_Get(renderCommands, i);
             var bb = Clay_RenderCommand.boundingBox(cmd);

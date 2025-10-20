@@ -27,10 +27,54 @@ public class Clay {
     static {
         System.loadLibrary("clay");
     }
+// todo: make this configurable
+    public static final Arena GLOBAL_ARENA = TrackedArena.global();
+
+    /**
+     * Memory Management Structures
+     * these are used to reduce allocations
+     * todo: explain more or point to readme
+     */
+    // global strings include the Clau_String struct and the string
+    private static final Map<String, MemorySegment> globalStrings = new HashMap<>();
+    // element queue holds element declarations in a stack
+    private static final Queue<MemorySegment> elementQueue = new ArrayDeque<>();
+    // string blocks are for dynamic strings keys are length: 4,8..128,136,144..256,512,1024
+    // Clay_String structs belonging to dynamic strings are also stored here
+    private static final Map<Long, List<MemorySegment>> stringBlocks = new HashMap<>();
+    // dynamic string allocations (these get reclaimed at initializeStrings()
+    private static final List<MemorySegment> allocatedStrings = new ArrayList<>();
+
+
+    public static void initializeStrings() {
+        for(var ms : allocatedStrings) {
+            var list = stringBlocks.computeIfAbsent(ms.byteSize(), (n)-> new ArrayList<>());
+            list.add(ms);
+        }
+        allocatedStrings.clear();
+    }
+
+    private static final long CLAY_STRING_STRUCT_SIZE = Clay_String.layout().byteSize();
+    private static MemorySegment nextDynamicClayString() {
+        var list = stringBlocks.computeIfAbsent(CLAY_STRING_STRUCT_SIZE, n->new ArrayList<>());
+        MemorySegment ms;
+        if(list.isEmpty()) {
+            ms = arena.allocate(CLAY_STRING_STRUCT_SIZE);
+        } else {
+            ms = list.removeLast();
+        }
+        ms.fill((byte)0);
+        return ms;
+    }
+
+    /**
+     * Clayj Scoped Helper Structs
+     * todo: move
+     */
 
     public static class Dimensions {
         public static MemorySegment of(float width, float height) {
-            var ms = Clay_Dimensions.allocate(arena);
+            var ms = tempAlloc(Clay_Dimensions.layout());
             Clay_Dimensions.width(ms, width);
             Clay_Dimensions.height(ms, height);
             return ms;
@@ -39,14 +83,14 @@ public class Clay {
 
     public static class Vector2 {
         public static MemorySegment fromRaylib(MemorySegment v2) {
-            var ms = Clay_Vector2.allocate(arena);
+            var ms = tempAlloc(Clay_Vector2.layout());
             Clay_Vector2.x(ms, Rayliib.Vector2.x(v2));
             Clay_Vector2.y(ms, Rayliib.Vector2.y(v2));
             return ms;
         }
 
         public static MemorySegment of(float x, float y) {
-            var ms = Clay_Vector2.allocate(arena);
+            var ms = tempAlloc(Clay_Vector2.layout());
             Clay_Vector2.x(ms, x);
             Clay_Vector2.y(ms, y);
             return ms;
@@ -55,7 +99,7 @@ public class Clay {
 
     public static class BoundingBox {
         public static MemorySegment of(float x, float y, float width, float height) {
-            var ms = Clay_BoundingBox.allocate(arena);
+            var ms = tempAlloc(Clay_BoundingBox.layout());
             Clay_BoundingBox.x(ms, x);
             Clay_BoundingBox.y(ms, y);
             Clay_BoundingBox.width(ms, width);
@@ -67,13 +111,6 @@ public class Clay {
     /***
      *    Clayj Scoped Arena
      */
-    private static class ScopedArena {
-        Map<Integer, Deque<MemorySegment>> availableAllocations = new HashMap<>();
-        Deque<List<MemorySegment>> allocatedStack = new ArrayDeque<>();
-
-    }
-    private static final ScopedArena clayjScopedArena = new ScopedArena();
-
     static Map<Integer, Deque<MemorySegment>> availableAllocations = new HashMap<>();
     static Deque<List<MemorySegment>> allocatedStack = new ArrayDeque<>();
 
@@ -85,14 +122,24 @@ public class Clay {
         if(currentSegments == null) {
             throw new IndexOutOfBoundsException("alloc stack is empty. run initialize first");
         }
-        var segments = availableAllocations.computeIfAbsent(byteSize, ArrayDeque::new);
+        var segments = availableAllocations.computeIfAbsent(byteSize, n->new ArrayDeque<>());
         var ms = segments.poll();
         if(ms == null) {
-            ms = arena().allocate(byteSize);
+            ms = arena.allocate(byteSize);
         }
         ms.fill((byte)0);
         currentSegments.add(ms);
         return ms;
+   }
+   // todo: this works likacharm.. but need to maybe formalize with predicate for a while loop
+   public static void beginRenderLoop() {
+        initializeStrings();
+       var allocations = allocatedStack.peek();
+       for (var ms : allocations) {
+           var segments = availableAllocations.computeIfAbsent((int) ms.byteSize(), ArrayDeque::new);
+           segments.add(ms);
+       }
+       allocations.clear();
    }
 
     public static void clay(Clay element) {
@@ -103,7 +150,7 @@ public class Clay {
         //  we need to use Clay internal functions, but this means
         // clayj is tied to the version it is built against
         // if internals change, clayj will need to be updated
-        ClayFFM.Clay__OpenElement();
+//        ClayFFM.Clay__OpenElement(); // open element happens in id() to support Scroll childOffset()
         ClayFFM.Clay__ConfigureOpenElement(element.elmMs);
 
         if (children != null) {
@@ -119,17 +166,12 @@ public class Clay {
         elementQueue.offer(element.elmMs);
         element.elmMs = null;
     }
-    public static MemorySegment getElementId(String s) {
-        var clayStringMS = globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString);
-        // todo: wasteful, need another queue or better yet a diff system
-        var idMs = Clay_ElementId.allocate(arena);
-        var strMs = Clay_ElementId.stringId(idMs);
-        Clay_String.chars(strMs, clayStringMS);
-        Clay_String.length(strMs,(int) clayStringMS.byteSize());
-        Clay_String.isStaticallyAllocated(strMs, true);
-        return Clay_GetElementId((a,b)->idMs, strMs);
-    }
 
+    public static MemorySegment getElementId(String s) {
+        var clayStr = ClayString.literal(s); // for now
+        return Clay_GetElementId(tempAllocator, clayStr.ms);
+    }
+    private static SegmentAllocator tempAllocator = (a,b)-> tempAlloc((int)a);
 
     public record TextElementConfig(MemorySegment ms) {
         public TextElementConfig letterSpacing(int spacing) {
@@ -180,18 +222,11 @@ public class Clay {
         }
     }
 
-//    private static MemorySegment allocateClayString(SegmentAllocator allocator, String s) {
-//        // need to allocate the "chars" and the Clay_String struct to hold them
-//        var clayStr = Clay_String.allocate(allocator);
-//        var utf8 = allocator.allocateFrom(s);
-//        Clay_String.chars(clayStr, utf8);
-//        Clay_String.isStaticallyAllocated(clayStr, true); //allocator == Arena.global());
-//        Clay_String.length(clayStr, (int) utf8.byteSize() - 1);
-//        return clayStr;
-//    }
 
-    private static final Map<String, MemorySegment> globalStrings = new HashMap<>();
 
+    private static class ElementDeclaration {
+
+    }
     private MemorySegment elmMs;
 
     private Clay() {
@@ -212,11 +247,9 @@ public class Clay {
     }
 
     public static Clay id(String id) {
-        if(id.isEmpty()) return new Clay();
-        return new Clay(id);
-    }
-    public static Clay anon() {
-        return new Clay();
+        var element = id.isEmpty()? new Clay() : new Clay(id);
+        ClayFFM.Clay__OpenElement(); // supports scroll in childOffset
+        return element;
     }
 
     public static void errorHandler(MemorySegment errorData) {
@@ -229,7 +262,10 @@ public class Clay {
         System.out.println("from java from c:  " + javaString );
     }
 
-    // todo: maybe copy :: also maybe use a string pointer and lookup the image in the renderer
+/////////////////////////////////////////////
+/// Begin Clar_ElementDeclaration Builders
+/////////////////////////////////////////////
+
     public Clay image(MemorySegment imageData) {
         var ms = Clay_ElementDeclaration.image(elmMs);
         Clay_ImageElementConfig.imageData(ms, imageData);
@@ -264,7 +300,6 @@ public class Clay {
         Clay_CornerRadius.bottomRight(ms, bottomRight);
         return this;
     }
-    private static final Queue<MemorySegment> elementQueue = new ArrayDeque<>();
 
     private static MemorySegment nextElementDeclaration() {
         if(elementQueue.isEmpty()) {
@@ -388,6 +423,7 @@ public class Clay {
         }
     }
 
+    static boolean fixup = false;
     public record ClipElementConfig(MemorySegment ms) {
         public ClipElementConfig horizontal(boolean on) {
             Clay_ClipElementConfig.horizontal(ms, on);
@@ -400,8 +436,8 @@ public class Clay {
         }
         // todo: hmm..
         public ClipElementConfig childOffset(MemorySegment v2) {
-            var offset = Clay_ClipElementConfig.childOffset(ms);
-            MemorySegment.copy(v2, 0, offset, 0, Clay_Vector2.layout().byteSize());
+//            fixup = true;
+            Clay_ClipElementConfig.childOffset(ms, v2);
             return this;
         }
         public ClipElementConfig childOffset(float x, float y) {
@@ -456,6 +492,19 @@ public class Clay {
             return this;
         }
 
+        public LayoutConfig childAlignment(int x, int y) {
+            var childMs = Clay_LayoutConfig.childAlignment(ms);
+            Clay_ChildAlignment.x(childMs, x);
+            Clay_ChildAlignment.y(childMs, y);
+            return this;
+        }
+
+        public LayoutConfig childAlignment(Function<ChildAlignment, ChildAlignment> a) {
+            var childMs = Clay_LayoutConfig.childAlignment(ms);
+            a.apply(new ChildAlignment(childMs));
+            return this;
+        }
+
         public record Padding(MemorySegment ms) {
             public Padding left(int left) {
                 Clay_Padding.left(ms, (short)left);
@@ -485,6 +534,16 @@ public class Clay {
                 return this;
             }
         }
+        public record ChildAlignment(MemorySegment ms) {
+            public ChildAlignment x(int x) {
+                Clay_ChildAlignment.x(ms, x);
+                return this;
+            }
+            public ChildAlignment y(int y) {
+                Clay_ChildAlignment.y(ms, y);
+                return this;
+            }
+        }
 
         public record Sizing(MemorySegment ms) {
             Sizing width(SizingAxis width) {
@@ -502,8 +561,6 @@ public class Clay {
                 var hMs = Clay_Sizing.height(ms);
                 Clay_SizingAxis.type(hMs, height.type);
                 var mmMs = Clay_SizingAxis.size.minMax(hMs);
-                // size is a union
-                // todo: should work, might need if/else for percent
                 Clay_SizingMinMax.min(mmMs, height.minOrPercent);
                 Clay_SizingMinMax.max(mmMs, height.max);
                 return this;
@@ -641,10 +698,12 @@ public class Clay {
     private static Arena arena;
     // todo: maybe only private or warning
     public static Arena arena() { return arena; }
+
     public static void initialize(Arena arena) {
-        Clay.arena = arena;
+        Clay.arena = new TrackedArena(arena);
         allocatedStack.push(new ArrayList<>());
     }
+
 
     public static int minMemorySize() {
         return ClayFFM.Clay_MinMemorySize();
@@ -653,10 +712,9 @@ public class Clay {
     public static void CLAY(Clay element, Runnable children) {
         clay(element, children);
     }
-//    public final static Color COLOR_RED = new Color(255, 0, 0, 255);
     public record Color(float r, float g, float b, float a) {}
     public static MemorySegment GLOBAL_CLAY_COLOR(float r, float g, float b, float a) {
-        var ms = Clay_Color.allocate(Arena.global());
+        var ms = Clay_Color.allocate(GLOBAL_ARENA);
         Clay_Color.r(ms, r);
         Clay_Color.g(ms, g);
         Clay_Color.b(ms, b);
@@ -664,7 +722,7 @@ public class Clay {
         return ms;
     }
     public static MemorySegment GLOBAL_RAYLIB_COLOR(int r, int g, int b, int a) {
-        var ms = Rayliib.Color.allocate(Arena.global());
+        var ms = Rayliib.Color.allocate(GLOBAL_ARENA);
         Rayliib.Color.r(ms, (byte)r);
         Rayliib.Color.g(ms, (byte)g);
         Rayliib.Color.b(ms, (byte)b);
@@ -673,30 +731,36 @@ public class Clay {
     }
 
 
-    public static void CLAY_TEXT(String text, Function<TextElementConfig, TextElementConfig> textConfig) {
-        clayText(ClayString.scoped(text), textConfig);
+    // todo: change this
+    public static void CLAY_TEXT(String str, Function<TextElementConfig, TextElementConfig> textConfig) {
+        clayText(ClayString.literal(str), textConfig);
     }
-    public static void CLAY_TEXT(MemorySegment text, Function<TextElementConfig, TextElementConfig> textConfig) {
-        clayText(text, textConfig);
+    public static void CLAY_TEXT(MemorySegment ms, Function<TextElementConfig, TextElementConfig> textConfig) {
+        clayText(new ClayString(ms), textConfig);
+    }
+    public static void CLAY_TEXT(ClayString cs, Function<TextElementConfig, TextElementConfig> textConfig) {
+        clayText(cs, textConfig);
     }
 
-    public static void clayText(String text, Function<TextElementConfig, TextElementConfig> textConfig) {
-        clayText(ClayString.scoped(text), textConfig);
-    }
-    public static void clayText(MemorySegment text, Function<TextElementConfig, TextElementConfig> textConfig) {
+    public static void clayText(ClayString text, Function<TextElementConfig, TextElementConfig> textConfig) {
         var ms = tempAlloc(Clay_TextElementConfig.layout());
         textConfig.apply(new TextElementConfig(ms));
         var cfg = Clay__StoreTextElementConfig(ms);
-        Clay__OpenTextElement(text, cfg);
+        Clay__OpenTextElement(text.ms, cfg);
+    }
+// todo: these names suck
+    public static void lText(String s, Function<TextElementConfig, TextElementConfig> textConfig) {
+        clayText(ClayString.literal(s), textConfig);
+    }
+    public static void dText(String s, Function<TextElementConfig, TextElementConfig> textConfig) {
+        clayText(ClayString.dynamic(s), textConfig);
     }
 
     public static class ClayString {
-
-        public static int requiredBytes(String s) {
-            var utf8 = s.getBytes(StandardCharsets.UTF_8);
-            return CLAY_STRING_STRUCT_SIZE + utf8.length;
+        final private MemorySegment ms;
+        private ClayString(MemorySegment ms) {
+            this.ms = ms;
         }
-
         public static MemorySegment buffered(MemorySegment ms, String s) {
             var utf8 = s.getBytes(StandardCharsets.UTF_8);
             if (ms.byteSize() < CLAY_STRING_STRUCT_SIZE + utf8.length) {
@@ -710,17 +774,13 @@ public class Clay {
             return ms;
         }
 
-        /** creates a Clay_String struct with the scope arena
-         * <p>
-         * See Clayj Scope Arena in README first!
-         * Memory reclaimed after scope exits
-         *
-         * @param s Java string
-         * @return Clay_String struct with UTF-8 encoded chars
-         */
-        public static MemorySegment scoped(String s) {
+        public static ClayString literal(String s) {
+            // todo: decide if the claystring struct should be part of the allocation [currently it is only for globals]
+            return new ClayString(globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString));
+        }
+        public static ClayString dynamic(String s) {
             var utf8 = s.getBytes(StandardCharsets.UTF_8);
-            int allocSize = utf8.length;
+            long allocSize = utf8.length;
 
             if (allocSize <= 128) {
                 allocSize += allocSize % 4;
@@ -731,32 +791,31 @@ public class Clay {
             } else if (allocSize <= 1024) {
                 allocSize = 1024;
             } else {
-                throw new IndexOutOfBoundsException("Scope string out of bounds: " + utf8.length);
+                throw new IndexOutOfBoundsException("UTF8 string length > 1024: " + utf8.length);
             }
-            var cstr = tempAlloc(allocSize);
-            MemorySegment.copy(utf8, 0, cstr, ValueLayout.JAVA_BYTE, 0, utf8.length);
+            var list = stringBlocks.computeIfAbsent(allocSize, n->new ArrayList<>());
+            var stringBuffer = list.isEmpty() ? arena.allocate(allocSize) : list.removeLast();
+            allocatedStrings.add(stringBuffer);
 
-            var ms = tempAlloc(Clay_String.layout());
-            Clay_String.chars(ms, cstr);
+            MemorySegment.copy(utf8, 0, stringBuffer, ValueLayout.JAVA_BYTE, 0, utf8.length);
+            var ms = nextDynamicClayString();
+            allocatedStrings.add(ms);
+
+            Clay_String.chars(ms, stringBuffer);
             Clay_String.isStaticallyAllocated(ms, false);
             Clay_String.length(ms, utf8.length);
-            return ms;
-        }
-        public static MemorySegment empty() {
-            return scoped("");
-        }
-        public static MemorySegment literal(String s) {
-//            if (s != s.intern()) { /** **/}
-            return globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString);
+            return new ClayString(ms);
         }
     }
-    public static MemorySegment CLAY_STRING(String s) {
+
+    public static ClayString CLAY_STRING(String s) {
         return ClayString.literal(s);
     }
-    private static final int CLAY_STRING_STRUCT_SIZE = (int)Clay_String.layout().byteSize();
+
     private static MemorySegment allocateGlobalClayString(String s) {
+        System.out.println("Global: " + s);
         var utf8 = s.getBytes(StandardCharsets.UTF_8);
-        var ms = Arena.global().allocate(utf8.length + CLAY_STRING_STRUCT_SIZE);
+        var ms = GLOBAL_ARENA.allocate(utf8.length + CLAY_STRING_STRUCT_SIZE, 8);
         MemorySegment.copy(utf8, 0, ms, ValueLayout.JAVA_BYTE, CLAY_STRING_STRUCT_SIZE, utf8.length);
         Clay_String.chars(ms, ms.asSlice(CLAY_STRING_STRUCT_SIZE, utf8.length));
         Clay_String.isStaticallyAllocated(ms, true);

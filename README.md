@@ -113,11 +113,63 @@ while(!WindowShouldClose()) {
 }
 ```
 Any struct that you create using Clayj convenience methods will only
-live for its scope. The scoped arena can also be used for small
-text objects. Anything under 256 bytes is fine, 256-1k is user discretion
-and over 1k is unsupported.
+live for its scope. 
 
-*Do not use scoped arena for large data or text buffers.*
+## Text Buffers
+
+Text buffers need to survive beyond the layout scope because they are included
+in the RenderCommands and when the actual render happens, calls to Raylib
+DrawText require the text buffer.
+
+ClayString created with String literals are only allocated once and are 
+stored in the global Arena. They are usable the entire lifetime of
+the application.
+
+Clayj provides a helper allocator that efficiently reuses buffers
+for dynamic strings. It supports strings up to 1024 bytes. Larger
+data is the responsibility of the user. To use Clayj dynamic strings
+call Clay.initializeStrings() inside the render loop before
+begin layout.
+
+Literal
+```
+var txt = ClayString.literal("Compile Time Literal");
+```
+
+Dyamic
+```
+Clay.initializeStrings();
+
+// ...
+
+var now = ClayString.dynamic(LocalDateTime.now().toString());
+
+```
+
+
+Shortcuts for CLAY_TEXT exist for dynamic and literal strings
+
+```java
+// explicit
+text(ClayString.literal("Show FPS"), l->l.fontSize(10).fontId(0));
+// ..
+text(ClayString.dynamic("FPS : " + fps), l->l.fontSize(12).fontId(0));
+
+// alternative
+ltext("Show FPS", l->l.fontSize(10).fontId(0));
+// ..
+dtext("FPS : " + fps, l->l.fontSize(12).fontId(0));
+
+```
+
+If you handle the memory yourself or get your strings from some other library
+you can create use fromCStr()
+
+```java
+// null terminated or length variants available
+MemorySegement ms = someCString(myAllocator);
+text(ClayString.fromCstr(ms), l->l.fontSize(12).fontId(0));
+```
 
 ## Temp Buffer without Allocating every frame
 

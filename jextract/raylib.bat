@@ -68,6 +68,7 @@ jextract -D __clang__                               ^
 --include-function GetMouseWheelMoveV ^
 --include-function IsMouseButtonDown ^
 --include-function GetFrameTime ^
+--incclude-function IsKeyDown ^
 --include-struct BoundingBox                        ^
 --include-struct Camera2D                           ^
 --include-struct Camera3D                           ^

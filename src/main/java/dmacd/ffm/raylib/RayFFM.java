@@ -471,6 +471,27 @@ public class RayFFM {
         }
     }
 
+    private static class IsKeyDown {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.of(
+                RayFFM.C_BOOL, RayFFM.C_INT    );
+
+        public static final MemorySegment ADDR = RayFFM.findOrThrow("IsKeyDown");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+    public static boolean IsKeyDown(int key) {
+        var mh$ = IsKeyDown.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("IsKeyDown");
+            }
+            return (boolean)mh$.invokeExact(key);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+
     private static class GetScreenWidth {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
             RayFFM.C_INT    );
