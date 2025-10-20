@@ -41,4 +41,4 @@ build/
 ########
 # CLAY clone or download clay manually
 ########
-lib/clay/
+/lib/clay/
