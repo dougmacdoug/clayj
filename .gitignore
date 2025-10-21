@@ -41,5 +41,4 @@ build/
 ########
 # CLAY clone or download clay manually
 ########
-clay/*
-!clay/README.txt
+/lib/clay/
