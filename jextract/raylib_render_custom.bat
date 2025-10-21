@@ -1,0 +1,95 @@
+jextract -D __clang__                               ^
+--include-constant DEG2RAD                          ^
+--include-constant FLAG_BORDERLESS_WINDOWED_MODE    ^
+--include-constant FLAG_FULLSCREEN_MODE             ^
+--include-constant FLAG_INTERLACED_HINT             ^
+--include-constant FLAG_MSAA_4X_HINT                ^
+--include-constant FLAG_VSYNC_HINT                  ^
+--include-constant FLAG_WINDOW_ALWAYS_RUN           ^
+--include-constant FLAG_WINDOW_HIDDEN               ^
+--include-constant FLAG_WINDOW_HIGHDPI              ^
+--include-constant FLAG_WINDOW_MAXIMIZED            ^
+--include-constant FLAG_WINDOW_MINIMIZED            ^
+--include-constant FLAG_WINDOW_MOUSE_PASSTHROUGH    ^
+--include-constant FLAG_WINDOW_RESIZABLE            ^
+--include-constant FLAG_WINDOW_TOPMOST              ^
+--include-constant FLAG_WINDOW_TRANSPARENT          ^
+--include-constant FLAG_WINDOW_UNDECORATED          ^
+--include-constant FLAG_WINDOW_UNFOCUSED            ^
+--include-constant FONT_BITMAP                      ^
+--include-constant FONT_DEFAULT                     ^
+--include-constant TEXTURE_FILTER_POINT ^
+--include-constant TEXTURE_FILTER_BILINEAR  ^
+--include-constant TEXTURE_FILTER_TRILINEAR ^
+--include-constant TEXTURE_FILTER_ANISOTROPIC_4X    ^
+--include-constant TEXTURE_FILTER_ANISOTROPIC_8X    ^
+--include-constant TEXTURE_FILTER_ANISOTROPIC_16X   ^
+--include-constant CAMERA_PERSPECTIVE ^
+--include-constant CAMERA_ORTHOGRAPHIC ^
+--include-typedef Camera                            ^
+--include-typedef FontType                          ^
+--include-typedef MouseButton                       ^
+--include-typedef MouseCursor                       ^
+--include-typedef Quaternion                        ^
+--include-typedef Texture2D                         ^
+--include-function BeginDrawing                     ^
+--include-function ClearBackground                  ^
+--include-function CloseWindow                      ^
+--include-function DrawRectangle                    ^
+--include-function DrawTexturePro ^
+--include-function BeginScissorMode ^
+--include-function EndScissorMode ^
+--include-function DrawRectangleRounded ^
+--include-function DrawRing ^
+--include-function LoadFontEx ^
+--include-function SetTextureFilter ^
+--include-function DrawText                         ^
+--include-function DrawTexture                      ^
+--include-function EndDrawing                       ^
+--include-function DrawTextEx ^
+--include-function InitWindow                       ^
+--include-function SetTargetFPS                     ^
+--include-function GetFontDefault                   ^
+--include-function MatrixLookAt                     ^
+--include-function MatrixIdentity                   ^
+--include-function MatrixPerspective                ^
+--include-function MatrixOrtho                      ^
+--include-function Vector3Unproject                 ^
+--include-function Vector3Normalize                 ^
+--include-function Vector3Subtract                  ^
+--include-function SetConfigFlags                   ^
+--include-function LoadFont                         ^
+--include-function LoadImage                        ^
+--include-function MeasureText                      ^
+--include-function WindowShouldClose                ^
+--include-function GetScreenWidth ^
+--include-function GetScreenHeight ^
+--include-function GetMousePosition ^
+--include-function GetMouseWheelMoveV ^
+--include-function IsMouseButtonDown ^
+--include-function GetFrameTime ^
+--include-function IsKeyDown ^
+--include-function IsKeyPressed ^
+--include-struct BoundingBox                        ^
+--include-struct Camera2D                           ^
+--include-struct Camera3D                           ^
+--include-struct Color                              ^
+--include-struct Font                               ^
+--include-struct GlyphInfo                          ^
+--include-struct Image                              ^
+--include-struct Matrix                             ^
+--include-struct Ray                                ^
+--include-struct Rectangle                          ^
+--include-struct Texture                            ^
+--include-struct Vector2                            ^
+--include-struct Vector3                            ^
+--include-struct Vector4                            ^
+-I lib/cmake-build-release/_deps/raylib-build/raylib/include ^
+--output src/main/java -t dmacd.ffm.raylib ^
+--header-class-name RayFFM raylib.h lib\raymath_for_jextract.h
+
+
+
+
+
+
