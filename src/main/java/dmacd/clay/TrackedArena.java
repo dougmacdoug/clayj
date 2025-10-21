@@ -21,10 +21,6 @@ public class TrackedArena implements Arena, AutoCloseable {
         return new TrackedArena(Arena.global());
     }
     public MemorySegment allocate(long byteSize) {
-        if(arena == Arena.global()) {
-        var re = new RuntimeException("asked for " + byteSize);
-        re.printStackTrace(); // todo: testing only
-        }
         MemorySegment segment = arena.allocate(byteSize);
         totalAllocatedBytes += byteSize;
         return segment;
@@ -32,10 +28,6 @@ public class TrackedArena implements Arena, AutoCloseable {
 
     @Override
     public MemorySegment allocate(long byteSize, long byteAlignment) {
-        if(arena == Arena.global()) {
-            var re = new RuntimeException("asked for " + byteSize);
-            re.printStackTrace(); // todo: testing only
-        }
         MemorySegment segment = arena.allocate(byteSize, byteAlignment);
         totalAllocatedBytes += byteSize;
         return segment;
@@ -47,8 +39,6 @@ public class TrackedArena implements Arena, AutoCloseable {
     }
 
     public MemorySegment allocateFrom(String str) {
-        var re = new RuntimeException("from string " + str);
-        re.printStackTrace(); // todo: testing only
         MemorySegment segment = arena.allocateFrom(str);
         totalAllocatedBytes += segment.byteSize();
         return segment;
