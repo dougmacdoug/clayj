@@ -1,17 +1,13 @@
 package dmacd.clay;
 
 import dmacd.ffm.clay.*;
-import dmacd.ffm.raylib.Rayliib;
 
 import java.lang.foreign.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static dmacd.clay.Clay.LayoutConfig.Sizing.fixed;
-import static dmacd.clay.Clay.LayoutConfig.Sizing.percent;
-import static dmacd.clay.Clay.LayoutConfig.Sizing.grow;
-import static dmacd.clay.Clay.LayoutConfig.Sizing.fit;
 import static dmacd.ffm.clay.ClayFFM.*;
 
 /**
@@ -27,7 +23,10 @@ public class Clay {
     static {
         System.loadLibrary("clay");
     }
-// todo: make this configurable
+
+//region Memory Management
+//--------------------------------------------------------------------------------------------------
+    // todo: make this configurable
     public static final Arena GLOBAL_ARENA = TrackedArena.global();
 
     /**
@@ -45,25 +44,27 @@ public class Clay {
     // dynamic string allocations (these get reclaimed at initializeStrings()
     private static final List<MemorySegment> allocatedStrings = new ArrayList<>();
 
+//endregion
 
-    public static void initializeStrings() {
-        for(var ms : allocatedStrings) {
-            var list = stringBlocks.computeIfAbsent(ms.byteSize(), (n)-> new ArrayList<>());
+    private static void initializeStrings() {
+        for (var ms : allocatedStrings) {
+            var list = stringBlocks.computeIfAbsent(ms.byteSize(), (n) -> new ArrayList<>());
             list.add(ms);
         }
         allocatedStrings.clear();
     }
 
     private static final long CLAY_STRING_STRUCT_SIZE = Clay_String.layout().byteSize();
+
     private static MemorySegment nextDynamicClayString() {
-        var list = stringBlocks.computeIfAbsent(CLAY_STRING_STRUCT_SIZE, n->new ArrayList<>());
+        var list = stringBlocks.computeIfAbsent(CLAY_STRING_STRUCT_SIZE, n -> new ArrayList<>());
         MemorySegment ms;
-        if(list.isEmpty()) {
+        if (list.isEmpty()) {
             ms = arena.allocate(CLAY_STRING_STRUCT_SIZE);
         } else {
             ms = list.removeLast();
         }
-        ms.fill((byte)0);
+        ms.fill((byte) 0);
         return ms;
     }
 
@@ -74,23 +75,41 @@ public class Clay {
 
     public static class Dimensions {
         public static MemorySegment of(float width, float height) {
-            var ms = tempAlloc(Clay_Dimensions.layout());
+            var ms = allocateScoped(Clay_Dimensions.layout());
             Clay_Dimensions.width(ms, width);
             Clay_Dimensions.height(ms, height);
             return ms;
         }
     }
-
-    public static class Vector2 {
-        public static MemorySegment fromRaylib(MemorySegment v2) {
-            var ms = tempAlloc(Clay_Vector2.layout());
-            Clay_Vector2.x(ms, Rayliib.Vector2.x(v2));
-            Clay_Vector2.y(ms, Rayliib.Vector2.y(v2));
+    // todo: annoyingly bad
+    public static class Color {
+        private final MemorySegment ms;
+        private Color(MemorySegment ms) {
+            this.ms = ms;
+        }
+        public static MemorySegment scoped(float r, float g, float b, float a) {
+            var ms = allocateScoped(Clay_Color.layout());
+            Clay_Color.r(ms, r);
+            Clay_Color.g(ms, g);
+            Clay_Color.b(ms, b);
+            Clay_Color.a(ms, a);
             return ms;
         }
+        public static Color from(MemorySegment ms) {
+            return new Color(ms);
+        }
+        public Color set(float r, float g, float b, float a) {
+            Clay_Color.r(ms, r);
+            Clay_Color.g(ms, g);
+            Clay_Color.b(ms, b);
+            Clay_Color.a(ms, a);
+            return this;
+        }
+    }
 
-        public static MemorySegment of(float x, float y) {
-            var ms = tempAlloc(Clay_Vector2.layout());
+    public static class Vector2 {
+        public static MemorySegment scoped(float x, float y) {
+            var ms = allocateScoped(Clay_Vector2.layout());
             Clay_Vector2.x(ms, x);
             Clay_Vector2.y(ms, y);
             return ms;
@@ -98,8 +117,8 @@ public class Clay {
     }
 
     public static class BoundingBox {
-        public static MemorySegment of(float x, float y, float width, float height) {
-            var ms = tempAlloc(Clay_BoundingBox.layout());
+        public static MemorySegment scoped(float x, float y, float width, float height) {
+            var ms = allocateScoped(Clay_BoundingBox.layout());
             Clay_BoundingBox.x(ms, x);
             Clay_BoundingBox.y(ms, y);
             Clay_BoundingBox.width(ms, width);
@@ -110,41 +129,65 @@ public class Clay {
 
     /***
      *    Clayj Scoped Arena
+     * <p>
+     *    NOTE: considered using a SlicingAllocator but handling
+     *    overflow and reclaiming each loop turned out to be
+     *    even more complicated than the stack + map
+     *      ** may revisit later
      */
     static Map<Integer, Deque<MemorySegment>> availableAllocations = new HashMap<>();
     static Deque<List<MemorySegment>> allocatedStack = new ArrayDeque<>();
 
-    public static MemorySegment tempAlloc(MemoryLayout layout) {
-        return tempAlloc((int)layout.byteSize());
+    public static MemorySegment allocateScoped(MemoryLayout layout) {
+        return allocateScoped(layout.byteSize());
     }
-    public static MemorySegment tempAlloc(int byteSize) {
+
+    public static MemorySegment allocateScoped(long byteSize) {
         var currentSegments = allocatedStack.peek();
-        if(currentSegments == null) {
-            throw new IndexOutOfBoundsException("alloc stack is empty. run initialize first");
-        }
-        var segments = availableAllocations.computeIfAbsent(byteSize, n->new ArrayDeque<>());
+        assert currentSegments != null; // run initialize first
+        var segments = availableAllocations.computeIfAbsent((int)byteSize, n -> new ArrayDeque<>());
         var ms = segments.poll();
-        if(ms == null) {
+        if (ms == null) {
             ms = arena.allocate(byteSize);
         }
-        ms.fill((byte)0);
+        ms.fill((byte) 0);
         currentSegments.add(ms);
         return ms;
-   }
-   // todo: this works likacharm.. but need to maybe formalize with predicate for a while loop
-   public static void beginRenderLoop() {
+    }
+
+
+    /**
+     * reclaims scoped memory.
+     * <p>
+     * <b>** Run at the beginning of render loop to avoid OutOfMemoryException</b>
+     *
+     */
+    public static void beginRenderLoop() {
         initializeStrings();
-       var allocations = allocatedStack.peek();
-       for (var ms : allocations) {
-           var segments = availableAllocations.computeIfAbsent((int) ms.byteSize(), ArrayDeque::new);
-           segments.add(ms);
-       }
-       allocations.clear();
-   }
+        var allocations = allocatedStack.peek();
+        assert allocations != null;
+        for (var ms : allocations) {
+            var segments = availableAllocations.computeIfAbsent((int) ms.byteSize(), ArrayDeque::new);
+            segments.add(ms);
+        }
+        allocations.clear();
+    }
 
     public static void clay(Clay element) {
         clay(element, null);
     }
+
+    public void runInScope(Consumer<Arena> runner) {
+        allocatedStack.push(new ArrayList<>());
+        runner.accept(arena);
+        var alloc = allocatedStack.pop();
+        for (var ms : alloc) {
+            var segments = availableAllocations.computeIfAbsent((int) ms.byteSize(), ArrayDeque::new);
+            segments.add(ms);
+        }
+
+    }
+
     public static void clay(Clay element, Runnable children) {
         // todo: put a blurb in README about compatibility etc.
         //  we need to use Clay internal functions, but this means
@@ -169,10 +212,45 @@ public class Clay {
 
     public static MemorySegment getElementId(String s) {
         var clayStr = ClayString.literal(s); // for now
-        return Clay_GetElementId(tempAllocator, clayStr.ms);
+        return Clay_GetElementId(scopedAllocator, clayStr.ms);
     }
-    private static SegmentAllocator tempAllocator = (a,b)-> tempAlloc((int)a);
 
+    private static final SegmentAllocator scopedAllocator = (b, a) -> allocateScoped(b);
+
+    /**
+     * Use this Arena to allocate structs and other small temporary data
+     * <p>
+     * This is not needed in clay() declarations where it is
+     * automatically in use. Use this for other code blocks that
+     * run frequently.
+     * <p>
+     * See {@link dmacd.clay.renderer.RaylibRenderer#Clay_Raylib_Render(MemorySegment, MemorySegment)} for example.
+     * @return Arena - makes allocations reusable after closing
+     */
+    public static Arena scopedArena() {
+        allocatedStack.push(new ArrayList<>());
+        return new Arena() {
+            // todo: handle alignment
+            @Override
+            public MemorySegment allocate(long byteSize, long byteAlignment) {
+                return allocateScoped(byteSize);
+            }
+
+            @Override
+            public MemorySegment.Scope scope() {
+                return arena.scope();
+            }
+
+            @Override
+            public void close() {
+                var alloc = allocatedStack.pop();
+                for (var ms : alloc) {
+                    var segments = availableAllocations.computeIfAbsent((int) ms.byteSize(), ArrayDeque::new);
+                    segments.add(ms);
+                }
+            }
+        };
+    }
     public record TextElementConfig(MemorySegment ms) {
         public TextElementConfig letterSpacing(int spacing) {
             Clay_TextElementConfig.letterSpacing(ms, (short) spacing);
@@ -205,17 +283,16 @@ public class Clay {
         }
 
         public TextElementConfig textColor(Color color) {
-            return textColor(color.r, color.g, color.b, color.a);
+            Clay_TextElementConfig.textColor(ms, color.ms);
+            return this;
         }
 
         public TextElementConfig textColor(float r, float g, float b, float a) {
             var colorMS = Clay_TextElementConfig.textColor(ms);
-            Clay_Color.r(colorMS, r);
-            Clay_Color.g(colorMS, g);
-            Clay_Color.b(colorMS, b);
-            Clay_Color.a(colorMS, a);
+            Color.from(colorMS).set(r, g, b, a);
             return this;
         }
+
         public TextElementConfig userData(MemorySegment userData) {
             Clay_TextElementConfig.userData(ms, userData);
             return this;
@@ -223,10 +300,10 @@ public class Clay {
     }
 
 
-
     private static class ElementDeclaration {
 
     }
+
     private MemorySegment elmMs;
 
     private Clay() {
@@ -247,7 +324,7 @@ public class Clay {
     }
 
     public static Clay id(String id) {
-        var element = id.isEmpty()? new Clay() : new Clay(id);
+        var element = id.isEmpty() ? new Clay() : new Clay(id);
         ClayFFM.Clay__OpenElement(); // supports scroll in childOffset
         return element;
     }
@@ -259,12 +336,12 @@ public class Clay {
         byte[] stringBytes = stringSegment.asSlice(0, len).toArray(ValueLayout.JAVA_BYTE);
         String javaString = new String(stringBytes, StandardCharsets.UTF_8);
 
-        System.out.println("from java from c:  " + javaString );
+        System.out.println("from java from c:  " + javaString);
     }
 
-/////////////////////////////////////////////
-/// Begin Clar_ElementDeclaration Builders
-/////////////////////////////////////////////
+    /// //////////////////////////////////////////
+    /// Begin Clar_ElementDeclaration Builders
+    /// //////////////////////////////////////////
 
     public Clay image(MemorySegment imageData) {
         var ms = Clay_ElementDeclaration.image(elmMs);
@@ -302,12 +379,12 @@ public class Clay {
     }
 
     private static MemorySegment nextElementDeclaration() {
-        if(elementQueue.isEmpty()) {
+        if (elementQueue.isEmpty()) {
             // this only happens when nesting
             // so after 10 elements deep in a nest it will allocate 10.
             // hundreds of elements at the same level will reuse the same memory
             var ms = Clay_ElementDeclaration.allocateArray(10, arena);
-            for(int i = 0; i < 10; i++) {
+            for (int i = 0; i < 10; i++) {
                 var element = Clay_ElementDeclaration.asSlice(ms, i);
                 elementQueue.add(element); // todo: test?
             }
@@ -338,41 +415,40 @@ public class Clay {
     }
 
     public Clay backgroundColor(Color c) {
-        return backgroundColor(c.r, c.g, c.b, c.a);
+        Clay_ElementDeclaration.backgroundColor(elmMs, c.ms);
+        return this;
     }
 
 
     public Clay backgroundColor(float r, float g, float b, float a) {
-        var ms = Clay_ElementDeclaration.backgroundColor(elmMs);
-        Clay_Color.r(ms, r);
-        Clay_Color.g(ms, g);
-        Clay_Color.b(ms, b);
-        Clay_Color.a(ms, a);
+        var colorMS = Clay_ElementDeclaration.backgroundColor(elmMs);
+        Color.from(colorMS).set(r, g, b, a);
         return this;
     }
 
+    // Move these with all the other CLAY_stuff somewhere optional
     public static LayoutConfig.SizingAxis CLAY_SIZING_FIT(float min) {
-        return fit(min);
+        return LayoutConfig.Sizing.fit(min);
     }
 
     public static LayoutConfig.SizingAxis CLAY_SIZING_FIT(float min, float max) {
-        return fit(min, max);
+        return LayoutConfig.Sizing.fit(min, max);
     }
 
     public static LayoutConfig.SizingAxis CLAY_SIZING_GROW(float min) {
-        return grow(min);
+        return LayoutConfig.Sizing.grow(min);
     }
 
     public static LayoutConfig.SizingAxis CLAY_SIZING_GROW(float min, float max) {
-        return grow(min, max);
+        return LayoutConfig.Sizing.grow(min, max);
     }
 
     public static LayoutConfig.SizingAxis CLAY_SIZING_FIXED(float n) {
-        return fixed(n);
+        return LayoutConfig.Sizing.fixed(n);
     }
 
     public static LayoutConfig.SizingAxis CLAY_SIZING_PERCENT(float n) {
-        return percent(n);
+        return LayoutConfig.Sizing.percent(n);
     }
 
 
@@ -405,14 +481,13 @@ public class Clay {
 
     public record BorderElementConfig(MemorySegment ms) {
         public BorderElementConfig color(Color c) {
-            return color(c.r, c.g, c.b, c.a);
+            Clay_BorderElementConfig.color(ms, c.ms);
+            return this;
         }
+
         public BorderElementConfig color(float r, float g, float b, float a) {
             var colorMs = Clay_BorderElementConfig.color(ms);
-            Clay_Color.r(colorMs, r);
-            Clay_Color.g(colorMs, g);
-            Clay_Color.b(colorMs, b);
-            Clay_Color.a(colorMs, a);
+            Color.from(colorMs).set(r, g, b, a);
             return this;
         }
 
@@ -423,7 +498,6 @@ public class Clay {
         }
     }
 
-    static boolean fixup = false;
     public record ClipElementConfig(MemorySegment ms) {
         public ClipElementConfig horizontal(boolean on) {
             Clay_ClipElementConfig.horizontal(ms, on);
@@ -434,12 +508,12 @@ public class Clay {
             Clay_ClipElementConfig.vertical(ms, on);
             return this;
         }
-        // todo: hmm..
+
         public ClipElementConfig childOffset(MemorySegment v2) {
-//            fixup = true;
             Clay_ClipElementConfig.childOffset(ms, v2);
             return this;
         }
+
         public ClipElementConfig childOffset(float x, float y) {
             var offset = Clay_ClipElementConfig.childOffset(ms);
             Clay_Vector2.x(offset, x);
@@ -455,17 +529,18 @@ public class Clay {
     }
 
     public record LayoutConfig(MemorySegment ms) {
-        public LayoutConfig layoutDirection(int direction) {
-            Clay_LayoutConfig.layoutDirection(ms, direction);
+        public LayoutConfig layoutDirection(LayoutDirection direction) {
+            Clay_LayoutConfig.layoutDirection(ms, direction.ordinal());
             return this;
         }
+
         public LayoutConfig padding(int left, int right, int top, int bottom) {
             var padMs = Clay_LayoutConfig.padding(ms);
             new Padding(padMs)
-                .left(left)
-                .right(right)
-                .top(top)
-                .bottom(bottom);
+                    .left(left)
+                    .right(right)
+                    .top(top)
+                    .bottom(bottom);
             return this;
         }
 
@@ -488,14 +563,14 @@ public class Clay {
         }
 
         public LayoutConfig childGap(int gap) {
-            Clay_LayoutConfig.childGap(ms, (short)gap);
+            Clay_LayoutConfig.childGap(ms, (short) gap);
             return this;
         }
 
-        public LayoutConfig childAlignment(int x, int y) {
+        public LayoutConfig childAlignment(LayoutAlignmentX x, LayoutAlignmentY y) {
             var childMs = Clay_LayoutConfig.childAlignment(ms);
-            Clay_ChildAlignment.x(childMs, x);
-            Clay_ChildAlignment.y(childMs, y);
+            Clay_ChildAlignment.x(childMs, x.ordinal());
+            Clay_ChildAlignment.y(childMs, y.ordinal());
             return this;
         }
 
@@ -507,22 +582,22 @@ public class Clay {
 
         public record Padding(MemorySegment ms) {
             public Padding left(int left) {
-                Clay_Padding.left(ms, (short)left);
+                Clay_Padding.left(ms, (short) left);
                 return this;
             }
 
             public Padding right(int right) {
-                Clay_Padding.right(ms, (short)right);
+                Clay_Padding.right(ms, (short) right);
                 return this;
             }
 
             public Padding top(int top) {
-                Clay_Padding.top(ms, (short)top);
+                Clay_Padding.top(ms, (short) top);
                 return this;
             }
 
             public Padding bottom(int bottom) {
-                Clay_Padding.bottom(ms, (short)bottom);
+                Clay_Padding.bottom(ms, (short) bottom);
                 return this;
             }
 
@@ -534,13 +609,15 @@ public class Clay {
                 return this;
             }
         }
+
         public record ChildAlignment(MemorySegment ms) {
-            public ChildAlignment x(int x) {
-                Clay_ChildAlignment.x(ms, x);
+            public ChildAlignment x(LayoutAlignmentX x) {
+                Clay_ChildAlignment.x(ms, x.ordinal());
                 return this;
             }
-            public ChildAlignment y(int y) {
-                Clay_ChildAlignment.y(ms, y);
+
+            public ChildAlignment y(LayoutAlignmentY y) {
+                Clay_ChildAlignment.y(ms, y.ordinal());
                 return this;
             }
         }
@@ -636,7 +713,7 @@ public class Clay {
         }
 
         public FloatingElementConfig zIndex(int zIndex) {
-            Clay_FloatingElementConfig.zIndex(ms, (short)zIndex);
+            Clay_FloatingElementConfig.zIndex(ms, (short) zIndex);
             return this;
         }
 
@@ -648,56 +725,23 @@ public class Clay {
 
         public record FloatingAttachPoints(MemorySegment ms) {
 
-            public FloatingAttachPoints element(int attachPoint) {
-                Clay_FloatingAttachPoints.element(ms, attachPoint);
+            public FloatingAttachPoints element(FloatingAttachPointType attachPoint) {
+                Clay_FloatingAttachPoints.element(ms, attachPoint.ordinal());
                 return this;
             }
 
-            public FloatingAttachPoints parent(int attachPoint) {
-                Clay_FloatingAttachPoints.parent(ms, attachPoint);
+            public FloatingAttachPoints parent(FloatingAttachPointType attachPoint) {
+                Clay_FloatingAttachPoints.parent(ms, attachPoint.ordinal());
                 return this;
-            }
-
-            public FloatingAttachPoints parent(AttachPoint attachPoint) {
-                return parent(attachPoint.getValue());
-            }
-
-            public FloatingAttachPoints element(AttachPoint attachPoint) {
-                return element(attachPoint.getValue());
-            }
-        }
-
-        public enum AttachPoint {
-            CLAY_ATTACH_POINT_LEFT_TOP(ClayFFM.CLAY_ATTACH_POINT_LEFT_TOP()),
-            CLAY_ATTACH_POINT_LEFT_CENTER(ClayFFM.CLAY_ATTACH_POINT_LEFT_CENTER()),
-            CLAY_ATTACH_POINT_LEFT_BOTTOM(ClayFFM.CLAY_ATTACH_POINT_LEFT_BOTTOM()),
-            CLAY_ATTACH_POINT_CENTER_TOP(ClayFFM.CLAY_ATTACH_POINT_CENTER_TOP()),
-            CLAY_ATTACH_POINT_CENTER_CENTER(ClayFFM.CLAY_ATTACH_POINT_CENTER_CENTER()),
-            CLAY_ATTACH_POINT_CENTER_BOTTOM(ClayFFM.CLAY_ATTACH_POINT_CENTER_BOTTOM()),
-            CLAY_ATTACH_POINT_RIGHT_TOP(ClayFFM.CLAY_ATTACH_POINT_RIGHT_TOP()),
-            CLAY_ATTACH_POINT_RIGHT_CENTER(ClayFFM.CLAY_ATTACH_POINT_RIGHT_CENTER()),
-            CLAY_ATTACH_POINT_RIGHT_BOTTOM(ClayFFM.CLAY_ATTACH_POINT_RIGHT_BOTTOM());
-
-            AttachPoint(int n) {
-                this.value = n;
-            }
-
-            private final int value;
-
-            public int getValue() {
-                return value;
             }
         }
     }
 
-
-    ///////////////////////////////////////////////////
+    /// ////////////////////////////////////////////////
     /// END Clay_ElementDeclaration Handling
-    ///////////////////////////////////////////////////
+    /// ////////////////////////////////////////////////
 
     private static Arena arena;
-    // todo: maybe only private or warning
-    public static Arena arena() { return arena; }
 
     public static void initialize(Arena arena) {
         Clay.arena = new TrackedArena(arena);
@@ -709,10 +753,6 @@ public class Clay {
         return ClayFFM.Clay_MinMemorySize();
     }
 
-    public static void CLAY(Clay element, Runnable children) {
-        clay(element, children);
-    }
-    public record Color(float r, float g, float b, float a) {}
     public static MemorySegment GLOBAL_CLAY_COLOR(float r, float g, float b, float a) {
         var ms = Clay_Color.allocate(GLOBAL_ARENA);
         Clay_Color.r(ms, r);
@@ -721,51 +761,35 @@ public class Clay {
         Clay_Color.a(ms, a);
         return ms;
     }
-    public static MemorySegment GLOBAL_RAYLIB_COLOR(int r, int g, int b, int a) {
-        var ms = Rayliib.Color.allocate(GLOBAL_ARENA);
-        Rayliib.Color.r(ms, (byte)r);
-        Rayliib.Color.g(ms, (byte)g);
-        Rayliib.Color.b(ms, (byte)b);
-        Rayliib.Color.a(ms, (byte)a);
-        return ms;
-    }
-
-
-    // todo: change this
-    public static void CLAY_TEXT(String str, Function<TextElementConfig, TextElementConfig> textConfig) {
-        clayText(ClayString.literal(str), textConfig);
-    }
-    public static void CLAY_TEXT(MemorySegment ms, Function<TextElementConfig, TextElementConfig> textConfig) {
-        clayText(new ClayString(ms), textConfig);
-    }
-    public static void CLAY_TEXT(ClayString cs, Function<TextElementConfig, TextElementConfig> textConfig) {
-        clayText(cs, textConfig);
-    }
 
     public static void clayText(ClayString text, Function<TextElementConfig, TextElementConfig> textConfig) {
-        var ms = tempAlloc(Clay_TextElementConfig.layout());
+        var ms = allocateScoped(Clay_TextElementConfig.layout());
         textConfig.apply(new TextElementConfig(ms));
         var cfg = Clay__StoreTextElementConfig(ms);
         Clay__OpenTextElement(text.ms, cfg);
     }
-// todo: these names suck
+
+    // todo: these names suck
     public static void lText(String s, Function<TextElementConfig, TextElementConfig> textConfig) {
         clayText(ClayString.literal(s), textConfig);
     }
+
     public static void dText(String s, Function<TextElementConfig, TextElementConfig> textConfig) {
         clayText(ClayString.dynamic(s), textConfig);
     }
 
     public static class ClayString {
         final private MemorySegment ms;
+
         private ClayString(MemorySegment ms) {
             this.ms = ms;
         }
+
         public static MemorySegment buffered(MemorySegment ms, String s) {
             var utf8 = s.getBytes(StandardCharsets.UTF_8);
             if (ms.byteSize() < CLAY_STRING_STRUCT_SIZE + utf8.length) {
                 throw new IndexOutOfBoundsException("Buffer size too small(%d). Clay_String requires (%d)"
-                        .formatted(ms.byteSize(),  CLAY_STRING_STRUCT_SIZE + utf8.length));
+                        .formatted(ms.byteSize(), CLAY_STRING_STRUCT_SIZE + utf8.length));
             }
             MemorySegment.copy(utf8, 0, ms, ValueLayout.JAVA_BYTE, CLAY_STRING_STRUCT_SIZE, utf8.length);
             Clay_String.chars(ms, ms.asSlice(CLAY_STRING_STRUCT_SIZE, utf8.length));
@@ -778,6 +802,7 @@ public class Clay {
             // todo: decide if the claystring struct should be part of the allocation [currently it is only for globals]
             return new ClayString(globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString));
         }
+
         public static ClayString dynamic(String s) {
             var utf8 = s.getBytes(StandardCharsets.UTF_8);
             long allocSize = utf8.length;
@@ -793,7 +818,7 @@ public class Clay {
             } else {
                 throw new IndexOutOfBoundsException("UTF8 string length > 1024: " + utf8.length);
             }
-            var list = stringBlocks.computeIfAbsent(allocSize, n->new ArrayList<>());
+            var list = stringBlocks.computeIfAbsent(allocSize, n -> new ArrayList<>());
             var stringBuffer = list.isEmpty() ? arena.allocate(allocSize) : list.removeLast();
             allocatedStrings.add(stringBuffer);
 
@@ -808,12 +833,8 @@ public class Clay {
         }
     }
 
-    public static ClayString CLAY_STRING(String s) {
-        return ClayString.literal(s);
-    }
 
     private static MemorySegment allocateGlobalClayString(String s) {
-        System.out.println("Global: " + s);
         var utf8 = s.getBytes(StandardCharsets.UTF_8);
         var ms = GLOBAL_ARENA.allocate(utf8.length + CLAY_STRING_STRUCT_SIZE, 8);
         MemorySegment.copy(utf8, 0, ms, ValueLayout.JAVA_BYTE, CLAY_STRING_STRUCT_SIZE, utf8.length);
@@ -821,5 +842,190 @@ public class Clay {
         Clay_String.isStaticallyAllocated(ms, true);
         Clay_String.length(ms, utf8.length);
         return ms;
+    }
+
+// region Clay Enums
+// ------------------------------------------------------------------------------------
+
+    /// Controls the direction in which child elements will be automatically laid out.
+    public enum LayoutDirection {
+        /// (Default) Lays out child elements from left to right with increasing x.
+        LEFT_TO_RIGHT,
+        /// Lays out child elements from top to bottom with increasing y.
+        TOP_TO_BOTTOM
+    }
+
+    /// Controls the alignment along the x-axis (horizontal) of child elements.
+    public enum LayoutAlignmentX {
+        /// (Default) Aligns child elements to the left hand side of this element, offset by padding.width.left
+        ALIGN_X_LEFT,
+        /// Aligns child elements to the right hand side of this element, offset by padding.width.right
+        ALIGN_X_RIGHT,
+        /// Aligns child elements horizontally to the center of this element
+        ALIGN_X_CENTER,
+    }
+
+    /// Controls the alignment along the y-axis (vertical) of child elements.
+    public enum LayoutAlignmentY {
+        /// (Default) Aligns child elements to the top of this element, offset by padding.width.top
+        ALIGN_Y_TOP,
+        /// Aligns child elements to the bottom of this element, offset by padding.width.bottom
+        ALIGN_Y_BOTTOM,
+        /// Aligns child elements vertically to the center of this element
+        ALIGN_Y_CENTER,
+    }
+
+    /// Controls how the element takes up space inside its parent container.
+    public enum SizingType {
+        /// (default) Wraps tightly to the size of the element's contents.
+        SIZING_TYPE_FIT,
+        /// Expands along this axis to fill available space in the parent element, sharing it with other GROW elements.
+        SIZING_TYPE_GROW,
+        /// Expects 0-1 range. Clamps the axis size to a percent of the parent container's axis size minus padding and child gaps.
+        SIZING_TYPE_PERCENT,
+        /// Clamps the axis size to an exact size in pixels.
+        SIZING_TYPE_FIXED,
+    }
+
+    /// Controls how text "wraps", that is how it is broken into multiple lines when there is insufficient horizontal space.
+    public enum TextElementConfigWrapMode {
+        /// (default) breaks on whitespace characters.
+        TEXT_WRAP_WORDS,
+        /// Don't break on space characters, only on newlines.
+        TEXT_WRAP_NEWLINES,
+        /// Disable text wrapping entirely.
+        TEXT_WRAP_NONE,
+    }
+
+    /// Controls how wrapped lines of text are horizontally aligned within the outer text bounding box.
+    public enum TextAlignment {
+        /// (default) Horizontally aligns wrapped lines of text to the left hand side of their bounding box.
+        TEXT_ALIGN_LEFT,
+        /// Horizontally aligns wrapped lines of text to the center of their bounding box.
+        TEXT_ALIGN_CENTER,
+        /// Horizontally aligns wrapped lines of text to the right hand side of their bounding box.
+        TEXT_ALIGN_RIGHT,
+    }
+
+    /// Controls where a floating element is offset relative to its parent element.
+    ///
+    /// Note: see https://github.com/user-attachments/assets/b8c6dfaa-c1b1-41a4-be55-013473e4a6ce for a visual explanation.
+    public enum FloatingAttachPointType {
+        ATTACH_POINT_LEFT_TOP,
+        ATTACH_POINT_LEFT_CENTER,
+        ATTACH_POINT_LEFT_BOTTOM,
+        ATTACH_POINT_CENTER_TOP,
+        ATTACH_POINT_CENTER_CENTER,
+        ATTACH_POINT_CENTER_BOTTOM,
+        ATTACH_POINT_RIGHT_TOP,
+        ATTACH_POINT_RIGHT_CENTER,
+        ATTACH_POINT_RIGHT_BOTTOM,
+    }
+
+    /// Controls how mouse pointer events like hover and click are captured or passed through to elements underneath a floating element.
+    public enum PointerCaptureMode {
+        /// (default) "Capture" the pointer event and don't allow events like hover and click to pass through to elements underneath.
+        POINTER_CAPTURE_MODE_CAPTURE,
+        //    POINTER_CAPTURE_MODE_PARENT, (CLAY_TODO pass pointer through to attached parent)
+        /// Transparently pass through pointer events like hover and click to elements underneath the floating element.
+        POINTER_CAPTURE_MODE_PASSTHROUGH,
+    }
+
+    /// Controls which element a floating element is "attached" to (i.e. relative offset from).
+    public enum FloatingAttachToElement {
+        /// (default) Disables floating for this element.
+        ATTACH_TO_NONE,
+        /// Attaches this floating element to its parent, positioned based on the .attachPoints and .offset fields.
+        ATTACH_TO_PARENT,
+        /// Attaches this floating element to an element with a specific ID, specified with the .parentId field. positioned based on the .attachPoints and .offset fields.
+        ATTACH_TO_ELEMENT_WITH_ID,
+        /// Attaches this floating element to the root of the layout, which combined with the .offset field provides functionality similar to "absolute positioning".
+        ATTACH_TO_ROOT,
+    }
+
+    /// Controls whether or not a floating element is clipped to the same clipping rectangle as the element it's attached to.
+    public enum FloatingClipToElement{
+        /// (default) - The floating element does not inherit clipping.
+        CLIP_TO_NONE,
+        /// The floating element is clipped to the same clipping rectangle as the element it's attached to.
+        CLIP_TO_ATTACHED_PARENT,
+    }
+
+    /// Used by renderers to determine specific handling for each render command.
+    public enum RenderCommandType {
+        /// This command type should be skipped.
+        RENDER_COMMAND_TYPE_NONE,
+        /// The renderer should draw a solid color rectangle.
+        RENDER_COMMAND_TYPE_RECTANGLE,
+        /// The renderer should draw a colored border inset into the bounding box.
+        RENDER_COMMAND_TYPE_BORDER,
+        /// The renderer should draw text.
+        RENDER_COMMAND_TYPE_TEXT,
+        /// The renderer should draw an image.
+        RENDER_COMMAND_TYPE_IMAGE,
+        /// The renderer should begin clipping all future draw commands, only rendering content that falls within the provided boundingBox.
+        RENDER_COMMAND_TYPE_SCISSOR_START,
+        /// The renderer should finish any previously active clipping, and begin rendering elements in full again.
+        RENDER_COMMAND_TYPE_SCISSOR_END,
+        /// The renderer should provide a custom implementation for handling this render command based on its .customData
+        RENDER_COMMAND_TYPE_CUSTOM,
+    }
+    /// Represents the current state of interaction with clay this frame.
+    public enum PointerDataInteractionState {
+        /// A left mouse click, or touch occurred this frame.
+        POINTER_DATA_PRESSED_THIS_FRAME,
+        /// The left mouse button click or touch happened at some point in the past, and is still currently held down this frame.
+        POINTER_DATA_PRESSED,
+        /// The left mouse button click or touch was released this frame.
+        POINTER_DATA_RELEASED_THIS_FRAME,
+        /// The left mouse button click or touch is not currently down / was released at some point in the past.
+        POINTER_DATA_RELEASED,
+    }
+    /// Represents the type of error clay encountered while computing layout.
+    public enum ErrorType {
+        /// A text measurement function wasn't provided using SetMeasureTextFunction(), or the provided function was null.
+        ERROR_TYPE_TEXT_MEASUREMENT_FUNCTION_NOT_PROVIDED,
+        /// Clay attempted to allocate its internal data structures but ran out of space.
+        /// The arena passed to Clay_Initialize was created with a capacity smaller than that required by Clay_MinMemorySize().
+        ERROR_TYPE_ARENA_CAPACITY_EXCEEDED,
+        /// Clay ran out of capacity in its internal array for storing elements. This limit can be increased with Clay_SetMaxElementCount().
+        ERROR_TYPE_ELEMENTS_CAPACITY_EXCEEDED,
+        /// Clay ran out of capacity in its internal array for storing elements. This limit can be increased with Clay_SetMaxMeasureTextCacheWordCount().
+        ERROR_TYPE_TEXT_MEASUREMENT_CAPACITY_EXCEEDED,
+        /// Two elements were declared with exactly the same ID within one layout.
+        ERROR_TYPE_DUPLICATE_ID,
+        /// A floating element was declared using CLAY_ATTACH_TO_ELEMENT_ID and either an invalid .parentId was provided or no element with the provided .parentId was found.
+        ERROR_TYPE_FLOATING_CONTAINER_PARENT_NOT_FOUND,
+        /// An element was declared that using CLAY_SIZING_PERCENT but the percentage value was over 1. Percentage values are expected to be in the 0-1 range.
+        ERROR_TYPE_PERCENTAGE_OVER_1,
+        /// Clay encountered an internal error. It would be wonderful if you could report this so we can fix it!
+        ERROR_TYPE_INTERNAL_ERROR,
+    }
+
+
+// endregion
+
+    public static class CLAY_ALIAS {
+        public static void CLAY(Clay element, Runnable children) {
+            clay(element, children);
+        }
+
+        public static ClayString CLAY_STRING(String s) {
+            return ClayString.literal(s);
+        }
+
+        // todo: change this
+        public static void CLAY_TEXT(String str, Function<TextElementConfig, TextElementConfig> textConfig) {
+            clayText(ClayString.literal(str), textConfig);
+        }
+
+        public static void CLAY_TEXT(MemorySegment ms, Function<TextElementConfig, TextElementConfig> textConfig) {
+            clayText(new ClayString(ms), textConfig);
+        }
+
+        public static void CLAY_TEXT(ClayString cs, Function<TextElementConfig, TextElementConfig> textConfig) {
+            clayText(cs, textConfig);
+        }
+
     }
 }

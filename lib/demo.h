@@ -1,5 +1,7 @@
 #include "clay/clay.h"
 
+// USED by jextract to build FFM classes for clay demo
+
  typedef struct {
  Clay_String title;
  Clay_String contents;

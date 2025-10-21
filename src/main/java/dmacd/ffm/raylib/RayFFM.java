@@ -2,12 +2,14 @@
 
 package dmacd.ffm.raylib;
 
-import java.lang.invoke.*;
+import dmacd.ffm.raylib.Raylib.*;
 import java.lang.foreign.*;
-import java.util.*;
-import java.util.stream.*;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
-import static java.lang.foreign.ValueLayout.*;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 
 public class RayFFM {
 
@@ -471,27 +473,6 @@ public class RayFFM {
         }
     }
 
-    private static class IsKeyDown {
-        public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-                RayFFM.C_BOOL, RayFFM.C_INT    );
-
-        public static final MemorySegment ADDR = RayFFM.findOrThrow("IsKeyDown");
-
-        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
-    }
-    public static boolean IsKeyDown(int key) {
-        var mh$ = IsKeyDown.HANDLE;
-        try {
-            if (TRACE_DOWNCALLS) {
-                traceDowncall("IsKeyDown");
-            }
-            return (boolean)mh$.invokeExact(key);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-
-
     private static class GetScreenWidth {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
             RayFFM.C_INT    );
@@ -606,7 +587,7 @@ public class RayFFM {
 
     private static class ClearBackground {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("ClearBackground");
@@ -764,6 +745,118 @@ public class RayFFM {
         try {
             if (TRACE_DOWNCALLS) {
                 traceDowncall("EndDrawing");
+            }
+            mh$.invokeExact();
+        } catch (Throwable ex$) {
+           throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+    private static class BeginMode3D {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
+            Camera3D.layout()
+        );
+
+        public static final MemorySegment ADDR = RayFFM.findOrThrow("BeginMode3D");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+
+    /**
+     * Function descriptor for:
+     * {@snippet lang=c :
+     * void BeginMode3D(Camera3D camera)
+     * }
+     */
+    public static FunctionDescriptor BeginMode3D$descriptor() {
+        return BeginMode3D.DESC;
+    }
+
+    /**
+     * Downcall method handle for:
+     * {@snippet lang=c :
+     * void BeginMode3D(Camera3D camera)
+     * }
+     */
+    public static MethodHandle BeginMode3D$handle() {
+        return BeginMode3D.HANDLE;
+    }
+
+    /**
+     * Address for:
+     * {@snippet lang=c :
+     * void BeginMode3D(Camera3D camera)
+     * }
+     */
+    public static MemorySegment BeginMode3D$address() {
+        return BeginMode3D.ADDR;
+    }
+
+    /**
+     * {@snippet lang=c :
+     * void BeginMode3D(Camera3D camera)
+     * }
+     */
+    public static void BeginMode3D(MemorySegment camera) {
+        var mh$ = BeginMode3D.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("BeginMode3D", camera);
+            }
+            mh$.invokeExact(camera);
+        } catch (Throwable ex$) {
+           throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+    private static class EndMode3D {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(    );
+
+        public static final MemorySegment ADDR = RayFFM.findOrThrow("EndMode3D");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+
+    /**
+     * Function descriptor for:
+     * {@snippet lang=c :
+     * void EndMode3D()
+     * }
+     */
+    public static FunctionDescriptor EndMode3D$descriptor() {
+        return EndMode3D.DESC;
+    }
+
+    /**
+     * Downcall method handle for:
+     * {@snippet lang=c :
+     * void EndMode3D()
+     * }
+     */
+    public static MethodHandle EndMode3D$handle() {
+        return EndMode3D.HANDLE;
+    }
+
+    /**
+     * Address for:
+     * {@snippet lang=c :
+     * void EndMode3D()
+     * }
+     */
+    public static MemorySegment EndMode3D$address() {
+        return EndMode3D.ADDR;
+    }
+
+    /**
+     * {@snippet lang=c :
+     * void EndMode3D()
+     * }
+     */
+    public static void EndMode3D() {
+        var mh$ = EndMode3D.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("EndMode3D");
             }
             mh$.invokeExact();
         } catch (Throwable ex$) {
@@ -1056,6 +1149,122 @@ public class RayFFM {
         }
     }
 
+    private static class IsKeyPressed {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.of(
+            RayFFM.C_BOOL,
+            RayFFM.C_INT
+        );
+
+        public static final MemorySegment ADDR = RayFFM.findOrThrow("IsKeyPressed");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+
+    /**
+     * Function descriptor for:
+     * {@snippet lang=c :
+     * _Bool IsKeyPressed(int key)
+     * }
+     */
+    public static FunctionDescriptor IsKeyPressed$descriptor() {
+        return IsKeyPressed.DESC;
+    }
+
+    /**
+     * Downcall method handle for:
+     * {@snippet lang=c :
+     * _Bool IsKeyPressed(int key)
+     * }
+     */
+    public static MethodHandle IsKeyPressed$handle() {
+        return IsKeyPressed.HANDLE;
+    }
+
+    /**
+     * Address for:
+     * {@snippet lang=c :
+     * _Bool IsKeyPressed(int key)
+     * }
+     */
+    public static MemorySegment IsKeyPressed$address() {
+        return IsKeyPressed.ADDR;
+    }
+
+    /**
+     * {@snippet lang=c :
+     * _Bool IsKeyPressed(int key)
+     * }
+     */
+    public static boolean IsKeyPressed(int key) {
+        var mh$ = IsKeyPressed.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("IsKeyPressed", key);
+            }
+            return (boolean)mh$.invokeExact(key);
+        } catch (Throwable ex$) {
+           throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+    private static class IsKeyDown {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.of(
+            RayFFM.C_BOOL,
+            RayFFM.C_INT
+        );
+
+        public static final MemorySegment ADDR = RayFFM.findOrThrow("IsKeyDown");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+
+    /**
+     * Function descriptor for:
+     * {@snippet lang=c :
+     * _Bool IsKeyDown(int key)
+     * }
+     */
+    public static FunctionDescriptor IsKeyDown$descriptor() {
+        return IsKeyDown.DESC;
+    }
+
+    /**
+     * Downcall method handle for:
+     * {@snippet lang=c :
+     * _Bool IsKeyDown(int key)
+     * }
+     */
+    public static MethodHandle IsKeyDown$handle() {
+        return IsKeyDown.HANDLE;
+    }
+
+    /**
+     * Address for:
+     * {@snippet lang=c :
+     * _Bool IsKeyDown(int key)
+     * }
+     */
+    public static MemorySegment IsKeyDown$address() {
+        return IsKeyDown.ADDR;
+    }
+
+    /**
+     * {@snippet lang=c :
+     * _Bool IsKeyDown(int key)
+     * }
+     */
+    public static boolean IsKeyDown(int key) {
+        var mh$ = IsKeyDown.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("IsKeyDown", key);
+            }
+            return (boolean)mh$.invokeExact(key);
+        } catch (Throwable ex$) {
+           throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
     private static class IsMouseButtonDown {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
             RayFFM.C_BOOL,
@@ -1116,7 +1325,7 @@ public class RayFFM {
 
     private static class GetMousePosition {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Vector2.layout()    );
+            Vector2.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("GetMousePosition");
 
@@ -1172,7 +1381,7 @@ public class RayFFM {
 
     private static class GetMouseWheelMoveV {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Vector2.layout()    );
+            Vector2.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("GetMouseWheelMoveV");
 
@@ -1228,13 +1437,13 @@ public class RayFFM {
 
     private static class DrawRing {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rayliib.Vector2.layout(),
+            Vector2.layout(),
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
             RayFFM.C_INT,
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawRing");
@@ -1295,7 +1504,7 @@ public class RayFFM {
             RayFFM.C_INT,
             RayFFM.C_INT,
             RayFFM.C_INT,
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawRectangle");
@@ -1352,10 +1561,10 @@ public class RayFFM {
 
     private static class DrawRectangleRounded {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rayliib.Rectangle.layout(),
+            Rectangle.layout(),
             RayFFM.C_FLOAT,
             RayFFM.C_INT,
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawRectangleRounded");
@@ -1412,7 +1621,7 @@ public class RayFFM {
 
     private static class LoadImage {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Image.layout(),
+            Image.layout(),
             RayFFM.C_POINTER
         );
 
@@ -1470,7 +1679,7 @@ public class RayFFM {
 
     private static class SetTextureFilter {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rayliib.Texture.layout(),
+            Texture.layout(),
             RayFFM.C_INT
         );
 
@@ -1528,10 +1737,10 @@ public class RayFFM {
 
     private static class DrawTexture {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rayliib.Texture.layout(),
+            Texture.layout(),
             RayFFM.C_INT,
             RayFFM.C_INT,
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawTexture");
@@ -1588,12 +1797,12 @@ public class RayFFM {
 
     private static class DrawTexturePro {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rayliib.Texture.layout(),
-            Rayliib.Rectangle.layout(),
-            Rayliib.Rectangle.layout(),
-            Rayliib.Vector2.layout(),
+            Texture.layout(),
+            Rectangle.layout(),
+            Rectangle.layout(),
+            Vector2.layout(),
             RayFFM.C_FLOAT,
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawTexturePro");
@@ -1650,7 +1859,7 @@ public class RayFFM {
 
     private static class GetFontDefault {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Font.layout()    );
+            Font.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("GetFontDefault");
 
@@ -1706,7 +1915,7 @@ public class RayFFM {
 
     private static class LoadFont {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Font.layout(),
+            Font.layout(),
             RayFFM.C_POINTER
         );
 
@@ -1764,7 +1973,7 @@ public class RayFFM {
 
     private static class LoadFontEx {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Font.layout(),
+            Font.layout(),
             RayFFM.C_POINTER,
             RayFFM.C_INT,
             RayFFM.C_POINTER,
@@ -1829,7 +2038,7 @@ public class RayFFM {
             RayFFM.C_INT,
             RayFFM.C_INT,
             RayFFM.C_INT,
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawText");
@@ -1886,12 +2095,12 @@ public class RayFFM {
 
     private static class DrawTextEx {
         public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
-            Rayliib.Font.layout(),
+            Font.layout(),
             RayFFM.C_POINTER,
-            Rayliib.Vector2.layout(),
+            Vector2.layout(),
             RayFFM.C_FLOAT,
             RayFFM.C_FLOAT,
-            Rayliib.Color.layout()
+            Color.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawTextEx");
@@ -2005,12 +2214,72 @@ public class RayFFM {
         }
     }
 
+    private static class DrawModel {
+        public static final FunctionDescriptor DESC = FunctionDescriptor.ofVoid(
+            Raylib.Model.layout(),
+            Raylib.Vector3.layout(),
+            RayFFM.C_FLOAT,
+            Raylib.Color.layout()
+        );
+
+        public static final MemorySegment ADDR = RayFFM.findOrThrow("DrawModel");
+
+        public static final MethodHandle HANDLE = Linker.nativeLinker().downcallHandle(ADDR, DESC);
+    }
+
+    /**
+     * Function descriptor for:
+     * {@snippet lang=c :
+     * void DrawModel(Model model, Vector3 position, float scale, Color tint)
+     * }
+     */
+    public static FunctionDescriptor DrawModel$descriptor() {
+        return DrawModel.DESC;
+    }
+
+    /**
+     * Downcall method handle for:
+     * {@snippet lang=c :
+     * void DrawModel(Model model, Vector3 position, float scale, Color tint)
+     * }
+     */
+    public static MethodHandle DrawModel$handle() {
+        return DrawModel.HANDLE;
+    }
+
+    /**
+     * Address for:
+     * {@snippet lang=c :
+     * void DrawModel(Model model, Vector3 position, float scale, Color tint)
+     * }
+     */
+    public static MemorySegment DrawModel$address() {
+        return DrawModel.ADDR;
+    }
+
+    /**
+     * {@snippet lang=c :
+     * void DrawModel(Model model, Vector3 position, float scale, Color tint)
+     * }
+     */
+    public static void DrawModel(MemorySegment model, MemorySegment position, float scale, MemorySegment tint) {
+        var mh$ = DrawModel.HANDLE;
+        try {
+            if (TRACE_DOWNCALLS) {
+                traceDowncall("DrawModel", model, position, scale, tint);
+            }
+            mh$.invokeExact(model, position, scale, tint);
+        } catch (Throwable ex$) {
+           throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
     private static class MatrixLookAt {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Matrix.layout(),
-            Rayliib.Vector3.layout(),
-            Rayliib.Vector3.layout(),
-            Rayliib.Vector3.layout()
+            Matrix.layout(),
+            Vector3.layout(),
+            Vector3.layout(),
+            Vector3.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("MatrixLookAt");
@@ -2067,7 +2336,7 @@ public class RayFFM {
 
     private static class MatrixIdentity {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Matrix.layout()    );
+            Matrix.layout()    );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("MatrixIdentity");
 
@@ -2123,7 +2392,7 @@ public class RayFFM {
 
     private static class MatrixPerspective {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Matrix.layout(),
+            Matrix.layout(),
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
@@ -2184,7 +2453,7 @@ public class RayFFM {
 
     private static class MatrixOrtho {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Matrix.layout(),
+            Matrix.layout(),
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
             RayFFM.C_DOUBLE,
@@ -2247,10 +2516,10 @@ public class RayFFM {
 
     private static class Vector3Unproject {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Vector3.layout(),
-            Rayliib.Vector3.layout(),
-            Rayliib.Matrix.layout(),
-            Rayliib.Matrix.layout()
+            Vector3.layout(),
+            Vector3.layout(),
+            Matrix.layout(),
+            Matrix.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("Vector3Unproject");
@@ -2307,8 +2576,8 @@ public class RayFFM {
 
     private static class Vector3Normalize {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Vector3.layout(),
-            Rayliib.Vector3.layout()
+            Vector3.layout(),
+            Vector3.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("Vector3Normalize");
@@ -2365,9 +2634,9 @@ public class RayFFM {
 
     private static class Vector3Subtract {
         public static final FunctionDescriptor DESC = FunctionDescriptor.of(
-            Rayliib.Vector3.layout(),
-            Rayliib.Vector3.layout(),
-            Rayliib.Vector3.layout()
+            Vector3.layout(),
+            Vector3.layout(),
+            Vector3.layout()
         );
 
         public static final MemorySegment ADDR = RayFFM.findOrThrow("Vector3Subtract");

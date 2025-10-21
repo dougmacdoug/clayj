@@ -58,7 +58,7 @@ calls exist for those who prefer a softer style.
 // Parent element with 8px of padding
 clay(id("parent").layout(l->l .padding(p->p.all(8))), ()-> {
     // Child element 1
-    text("Hello World", f->f.fontSize(16));
+    clayText("Hello World", f->f.fontSize(16));
     // Child element 2 with red background
     clay(id("child").backgroundColor(COLOR_RED), ()-> {
         // etc
@@ -72,6 +72,21 @@ and a simpler method call for short values/series.
 
 A Clay struct like `{ .fontSize = 16, .color =  { 255, 0, 0, 255 } }` would be written as
  `f->f.fontSize(16).color(255, 0, 0, 255)` in Clayj.
+
+## State of the Library
+
+There are several Todos throughout the code and they will be added to the readme soon. (First todo)
+
+Currently there is a demo that runs in Java25 with clay.dll and raylib.dll. (Raylib 5.5)
+It is a direct port of https://github.com/nicbarker/clay/blob/main/examples/raylib-multi-context/main.c
+
+Testing will soon be done on linux, but it is expected to run first try as usual.
+
+The memory management has been tested and does not allocate new memory over time but
+the scoped arenas and helper classes need work both to be more easily understandable
+and to be more idiomatic to Java.
+
+
 
 ## String literals
 
@@ -151,11 +166,11 @@ Shortcuts for CLAY_TEXT exist for dynamic and literal strings
 
 ```java
 // explicit
-text(ClayString.literal("Show FPS"), l->l.fontSize(10).fontId(0));
+clayText(ClayString.literal("Show FPS"), l->l.fontSize(10).fontId(0));
 // ..
-text(ClayString.dynamic("FPS : " + fps), l->l.fontSize(12).fontId(0));
+clayText(ClayString.dynamic("FPS : " + fps), l->l.fontSize(12).fontId(0));
 
-// alternative
+// alternative todo: these are going to be renamed or removed
 ltext("Show FPS", l->l.fontSize(10).fontId(0));
 // ..
 dtext("FPS : " + fps, l->l.fontSize(12).fontId(0));
@@ -171,26 +186,16 @@ MemorySegement ms = someCString(myAllocator);
 text(ClayString.fromCstr(ms), l->l.fontSize(12).fontId(0));
 ```
 
-## Temp Buffer without Allocating every frame
+## Memory Management
 
-```java
-MemorySegment largeBuffer = null;
-Arena largeBufferArena - null;
-while(!WindowShouldClose()) {
-  if(showLargeThing) {
-    if(largeBufferArena == null) {
-        largeBufferArena = Arena.ofConfined();
-        largeBuffer = largeBufferArena.allocate(BIG_NUM);
-    }      
-    // use large buffer @ 60FPS
-    showBigThing(largeBuffer);
-    if(someEventHappened()) {
-        showLargeThing = false;
-        largeBuffer = null;
-        largeBufferArena.close();
-        largeBufferArena = null;
-    }
-  }    
-  // render normal stuff here  
-}
-```
+There are several methods to handle memory without growing every frame
+ of the render loop, but they are trickier if the MemorySegments need
+ to live outside a certain scope. You can use a simple confined arena,
+ but you need to close the arena if the memory grows or gets allocated
+ frequently otherwise it will continue to grow over the course of the
+ runtime. Even if you stop using a MemorySegment it does not get reclaimed
+ while the Arena is open.
+ 
+A SlicingArena may be the best alternative for most uses especially 
+ if you know how much memory you will need per frame. 
+

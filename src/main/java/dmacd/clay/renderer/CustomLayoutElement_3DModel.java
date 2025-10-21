@@ -3,7 +3,7 @@
 package dmacd.clay.renderer;
 
 import dmacd.ffm.raylib.RayFFM;
-import dmacd.ffm.raylib.Rayliib;
+import dmacd.ffm.raylib.Raylib;
 
 import java.lang.foreign.*;
 import java.util.function.*;
@@ -28,10 +28,10 @@ public class CustomLayoutElement_3DModel {
     }
 
     private static final GroupLayout $LAYOUT = MemoryLayout.structLayout(
-        Rayliib.Model.layout().withName("model"),
+        Raylib.Model.layout().withName("model"),
         RayFFM.C_FLOAT.withName("scale"),
-        Rayliib.Vector3.layout().withName("position"),
-        Rayliib.Matrix.layout().withName("rotation")
+        Raylib.Vector3.layout().withName("position"),
+        Raylib.Matrix.layout().withName("rotation")
     ).withName("$anon$11:9");
 
     /**

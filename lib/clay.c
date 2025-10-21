@@ -1,9 +1,6 @@
-//
-// Created by macdo on 9/29/2025.
-//
 
-#include <string.h>
-
+// __stdcall causing error on vs2022 .. the macro puts it out of order
+// undef for quick fix, probably a better (correct) way
 #ifdef CLAY_DLL_FIX
 #define CLAY_DLL
 #define __stdcall
@@ -12,23 +9,7 @@
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
 
-
-static Clay_ErrorData lastError = {0};
-
-CLAY_DLL_EXPORT void HandleClayErrors(Clay_ErrorData errorData) {
-    memcpy(&lastError, &errorData, sizeof(Clay_ErrorData));
-}
-
- void ClearErrors() {
-    memset(&lastError, 0, sizeof(Clay_ErrorData));
-}
-
- Clay_ErrorData GetAndClearError() {
-    Clay_ErrorData errorData = {0};
-    memcpy(&errorData, &lastError, sizeof(Clay_ErrorData));
-    memset(&lastError, 0, sizeof(Clay_ErrorData));
-    return errorData;
-}
+// todo: make optional downcall versions of the 3 upcall methods
 
 #ifdef CLAY_DLL_FIX
 #undef __stdcall

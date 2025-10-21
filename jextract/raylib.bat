@@ -68,7 +68,11 @@ jextract -D __clang__                               ^
 --include-function GetMouseWheelMoveV ^
 --include-function IsMouseButtonDown ^
 --include-function GetFrameTime ^
---incclude-function IsKeyDown ^
+--include-function IsKeyDown ^
+--include-function IsKeyPressed ^
+--include-function BeginMode3D ^
+--include-function DrawModel ^
+--include-function EndMode3D ^
 --include-struct BoundingBox                        ^
 --include-struct Camera2D                           ^
 --include-struct Camera3D                           ^
@@ -83,6 +87,7 @@ jextract -D __clang__                               ^
 --include-struct Vector2                            ^
 --include-struct Vector3                            ^
 --include-struct Vector4                            ^
+--include-struct Model                              ^
 -I lib/cmake-build-release/_deps/raylib-build/raylib/include ^
 --output src/main/java -t dmacd.ffm.raylib ^
 --header-class-name RayFFM raylib.h lib\raymath_for_jextract.h

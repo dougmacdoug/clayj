@@ -5,7 +5,7 @@ import java.util.function.Consumer;
 
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 
-public class Rayliib {
+public class Raylib {
     /**
      * {@snippet lang=c :
      * struct BoundingBox {
