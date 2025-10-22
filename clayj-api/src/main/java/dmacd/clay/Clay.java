@@ -106,24 +106,50 @@ public class Clay {
             return this;
         }
     }
+// todo: these need to be better
+    public record Vector2(MemorySegment ms) {
 
-    public static class Vector2 {
-        public static MemorySegment scoped(float x, float y) {
+        public float x() { return Clay_Vector2.x(ms); }
+        public float y() { return Clay_Vector2.y(ms); }
+
+        public static Vector2 scoped(float x, float y) {
             var ms = allocateScoped(Clay_Vector2.layout());
             Clay_Vector2.x(ms, x);
             Clay_Vector2.y(ms, y);
-            return ms;
+            return new Vector2(ms);
         }
     }
 
-    public static class BoundingBox {
-        public static MemorySegment scoped(float x, float y, float width, float height) {
+    public record BoundingBox(MemorySegment ms) {
+        public float x() { return Clay_BoundingBox.x(ms); }
+        public float y() { return Clay_BoundingBox.y(ms); }
+        public float width() { return Clay_BoundingBox.width(ms); }
+        public float height() { return Clay_BoundingBox.height(ms); }
+
+        public BoundingBox x(float x) {
+            Clay_BoundingBox.x(ms);
+            return this;
+        }
+        public BoundingBox y(float y) {
+            Clay_BoundingBox.y(ms, y);
+            return this;
+        }
+        public BoundingBox width(float w) {
+            Clay_BoundingBox.width(ms, w);
+            return this;
+        }
+        public BoundingBox height(float h) {
+            Clay_BoundingBox.height(ms, h);
+            return this;
+        }
+
+        public static BoundingBox scoped(float x, float y, float width, float height) {
             var ms = allocateScoped(Clay_BoundingBox.layout());
             Clay_BoundingBox.x(ms, x);
             Clay_BoundingBox.y(ms, y);
             Clay_BoundingBox.width(ms, width);
             Clay_BoundingBox.height(ms, height);
-            return ms;
+            return new BoundingBox(ms);
         }
     }
 
@@ -323,6 +349,9 @@ public class Clay {
         }, clayStringMS, 0, 0);
     }
 
+    public static Clay id() {
+        return id("");
+    }
     public static Clay id(String id) {
         var element = id.isEmpty() ? new Clay() : new Clay(id);
         ClayFFM.Clay__OpenElement(); // supports scroll in childOffset
@@ -509,6 +538,12 @@ public class Clay {
             return this;
         }
 
+        public ClipElementConfig childOffset(Vector2 v2) {
+            Clay_ClipElementConfig.childOffset(ms, v2.ms);
+            return this;
+        }
+
+// todo: dont need this one
         public ClipElementConfig childOffset(MemorySegment v2) {
             Clay_ClipElementConfig.childOffset(ms, v2);
             return this;
@@ -697,13 +732,13 @@ public class Clay {
             return this;
         }
 
-        public FloatingElementConfig attachTo(int attachTo) {
-            Clay_FloatingElementConfig.attachTo(ms, attachTo);
+        public FloatingElementConfig attachTo(FloatingAttachToElement attachTo) {
+            Clay_FloatingElementConfig.attachTo(ms, attachTo.ordinal());
             return this;
         }
 
-        public FloatingElementConfig clipTo(int clipTo) {
-            Clay_FloatingElementConfig.clipTo(ms, clipTo);
+        public FloatingElementConfig clipTo(FloatingClipToElement clipTo) {
+            Clay_FloatingElementConfig.clipTo(ms, clipTo.ordinal());
             return this;
         }
 
@@ -1004,7 +1039,68 @@ public class Clay {
 
 
 // endregion
+    @FunctionalInterface
+    public interface ClayHoverFunction {
+        void onHover(Clay.ElementData e, PointerData p);
+    }
 
+    public record ElementData(MemorySegment ms){}
+    public record PointerData(MemorySegment ms) {
+        Vector2 position() {
+            var p = Clay_PointerData.position(ms);
+            return new Vector2(p);
+        }
+        public PointerDataInteractionState state() {
+            var state = Clay_PointerData.state(ms);
+            // todo: could use a case statement, hoping compiler is smart L)
+            return PointerDataInteractionState.values()[state];
+        }
+        public boolean pressedThisFrame() {
+            var state = Clay_PointerData.state(ms);
+            return state == PointerDataInteractionState.POINTER_DATA_PRESSED_THIS_FRAME.ordinal();
+        }
+        public boolean pressed() {
+            var state = Clay_PointerData.state(ms);
+            return state == PointerDataInteractionState.POINTER_DATA_PRESSED.ordinal();
+        }
+        public boolean released() {
+            var state = Clay_PointerData.state(ms);
+            return state == PointerDataInteractionState.POINTER_DATA_RELEASED.ordinal();
+        }
+        public boolean releasedThisFrame() {
+            var state = Clay_PointerData.state(ms);
+            return state == PointerDataInteractionState.POINTER_DATA_RELEASED_THIS_FRAME.ordinal();
+        }
+
+    }
+
+    public static void onHover(ClayHoverFunction hoverFunc) {
+        // todo: this should be new temparena
+        var func = Clay_OnHover$onHoverFunction.allocate((elementData, pointerData, userData) ->{
+            var pd = new PointerData(pointerData);
+            var elm = new ElementData(elementData);
+            hoverFunc.onHover(elm, pd);
+        }, arena);
+        ClayFFM.Clay_OnHover(func, 0);
+    }
+    public record RenderCommand(MemorySegment ms) {
+
+    }
+    public static List<RenderCommand> endLayout() {
+        List<RenderCommand> list = new ArrayList<>();
+        var renderCommands = ClayFFM.Clay_EndLayout(scopedAllocator);
+        for (int i = 0; i < Clay_RenderCommandArray.length(renderCommands); i++) {
+            var cmd = ClayFFM.Clay_RenderCommandArray_Get(renderCommands, i);
+            cmd = Clay_RenderCommand.reinterpret(cmd, arena, null);
+            list.add(new RenderCommand(cmd));
+        }
+        return list;
+    }
+
+
+    public static Vector2 getScrollOffset() {
+        return new Vector2(ClayFFM.Clay_GetScrollOffset(scopedAllocator));
+    }
     public static class CLAY_ALIAS {
         public static void CLAY(Clay element, Runnable children) {
             clay(element, children);
@@ -1026,6 +1122,5 @@ public class Clay {
         public static void CLAY_TEXT(ClayString cs, Function<TextElementConfig, TextElementConfig> textConfig) {
             clayText(cs, textConfig);
         }
-
     }
 }

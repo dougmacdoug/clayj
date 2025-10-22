@@ -15,7 +15,11 @@ import java.util.function.Function;
 import static dmacd.clay.Clay.*;
 import static dmacd.clay.Clay.CLAY_ALIAS.*;
 
-public class Demo {
+/**
+ * This class represents a near 1:1 port from C to Java FFM of the following Clay demo:
+ *  https://github.com/nicbarker/clay/blob/main/examples/raylib-multi-context/main.c
+ */
+public class RaylibMultiContextPort {
 
     static {
         System.loadLibrary("raylib");
@@ -163,7 +167,7 @@ static long MEMORY_ADDRESS;
     static final MemorySegment mouseScroll = Raylib.Vector2.allocate(Arena.global());
 
     static MemorySegment vector2FromRaylibV2(MemorySegment ms) {
-        return Vector2.scoped(Raylib.Vector2.x(ms), Raylib.Vector2.y(ms));
+        return Vector2.scoped(Raylib.Vector2.x(ms), Raylib.Vector2.y(ms)).ms();
     }
     static boolean showDebug = true;
    static
@@ -185,9 +189,9 @@ static long MEMORY_ADDRESS;
     }
 
     static void RenderDropdownMenuItem(String str) {
-        CLAY_ALIAS.CLAY(Clay.id("").layout(l -> l
+        CLAY(Clay.id("").layout(l -> l
                 .padding(Clay.CLAY_PADDING_ALL(16))), () -> {
-            CLAY_ALIAS.CLAY_TEXT(str, cfg -> cfg
+            CLAY_TEXT(str, cfg -> cfg
                     .fontId(FONT_ID_BODY_16)
                     .fontSize(16)
                     .textColor(255, 255, 255, 255)
@@ -196,18 +200,18 @@ static long MEMORY_ADDRESS;
     }
 
     static void RenderHeaderButton(String text) {
-        CLAY_ALIAS.CLAY(Clay.id("") // todo: anon()
+        CLAY(Clay.id("") // todo: anon()
                 .layout(l -> l
                         .padding(16, 16, 8, 8))
                 .backgroundColor(140, 140, 140, 255)
                 .cornerRadius(Clay.CLAY_CORNER_RADIUS(5)), () -> {
-            CLAY_ALIAS.CLAY_TEXT(text, cfg -> cfg
+            CLAY_TEXT(text, cfg -> cfg
                     .fontId(FONT_ID_BODY_16)
                     .fontSize(16)
                     .textColor(255, 255, 255, 255));
         });
     }
-    static final MemorySegment sidebarHoverFunction = Clay_OnHover$onHoverFunction.allocate(Demo::HandleSidebarInteraction, Arena.global());
+    static final MemorySegment sidebarHoverFunction = Clay_OnHover$onHoverFunction.allocate(RaylibMultiContextPort::HandleSidebarInteraction, Arena.global());
 
     static void HandleSidebarInteraction(
             MemorySegment elementId,
@@ -250,7 +254,7 @@ static long MEMORY_ADDRESS;
         final Clay.Color contentBackgroundColor = Color.from(Color.scoped(90, 90, 90, 255));
 
         // Build UI here
-        CLAY_ALIAS.CLAY(Clay.id("OuterContainer")
+        CLAY(Clay.id("OuterContainer")
                 .backgroundColor(43, 41, 51, 255)
                 .layout(l -> l
                         .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
@@ -259,7 +263,7 @@ static long MEMORY_ADDRESS;
                         .childGap(16)
                 ), () -> {
             // Child elements go inside braces
-            CLAY_ALIAS.CLAY(Clay.id("HeaderBar")
+            CLAY(Clay.id("HeaderBar")
                     .layout(l -> l
                             .sizing(s -> s
                                     .height(Clay.CLAY_SIZING_FIXED(60))
@@ -273,11 +277,11 @@ static long MEMORY_ADDRESS;
                     .backgroundColor(contentBackgroundColor)
                     .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), () -> {
                 // Header buttons go here
-                CLAY_ALIAS.CLAY(Clay.id("FileButton")
+                CLAY(Clay.id("FileButton")
                         .layout(l -> l.padding(16, 16, 8, 8))
                         .backgroundColor(140, 140, 140, 255)
                         .cornerRadius(Clay.CLAY_CORNER_RADIUS(5)), () -> {
-                    CLAY_ALIAS.CLAY_TEXT("File", cfg -> cfg
+                    CLAY_TEXT("File", cfg -> cfg
                             .fontId(FONT_ID_BODY_16)
                             .fontSize(16)
                             .textColor(255, 255, 255, 255)
@@ -289,9 +293,9 @@ static long MEMORY_ADDRESS;
                                     ClayFFM.Clay_PointerOver(Clay.getElementId("FileMenu"));
 
                     if (fileMenuVisible) { // Below has been changed slightly to fix the small bug where the menu would dismiss when mousing over the top gap
-                        CLAY_ALIAS.CLAY(Clay.id("FileMenu")
+                        CLAY(Clay.id("FileMenu")
                                 .floating(f -> f
-                                        .attachTo(CLAY_ATTACH_TO_PARENT)
+                                        .attachTo(FloatingAttachToElement.ATTACH_TO_PARENT)
                                         .attachPoints(a -> a
                                                 .parent(FloatingAttachPointType.ATTACH_POINT_LEFT_BOTTOM)
                                         )
@@ -299,7 +303,7 @@ static long MEMORY_ADDRESS;
                                 .layout(l -> l
                                         .padding(0, 0, 8, 8)
                                 ), () -> {
-                            CLAY_ALIAS.CLAY(Clay.id("")
+                            CLAY(Clay.id("")
                                     .layout(l -> l
                                             .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
                                             .sizing(s -> s
@@ -317,15 +321,15 @@ static long MEMORY_ADDRESS;
                     }
                 }); // end file button
                 RenderHeaderButton("Edit");
-                CLAY_ALIAS.CLAY(Clay.id("").layout(l -> l.sizing(Clay.CLAY_SIZING_GROW(0))), ()->{});
+                CLAY(Clay.id("").layout(l -> l.sizing(Clay.CLAY_SIZING_GROW(0))), ()->{});
                 RenderHeaderButton("Upload");
                 RenderHeaderButton("Media");
                 RenderHeaderButton("Support");
             }); // end header bar
 
-            CLAY_ALIAS.CLAY(Clay.id("LowerContent")
+            CLAY(Clay.id("LowerContent")
                     .layout(l -> l.sizing(layoutExpand).childGap(16)), () -> {
-                CLAY_ALIAS.CLAY(Clay.id("Sidebar")
+                CLAY(Clay.id("Sidebar")
                         .backgroundColor(contentBackgroundColor)
                         .layout(l -> l
                                 .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
@@ -343,7 +347,7 @@ static long MEMORY_ADDRESS;
                         var document = Document.asSlice(docs, i);
 
                         if (i == ClayVideoDemo_Data.selectedDocumentIndex(data)) {
-                            CLAY_ALIAS.CLAY(Clay.id("").layout(sidebarButtonLayout)
+                            CLAY(Clay.id("").layout(sidebarButtonLayout)
                                     .backgroundColor(120, 120, 120, 255)
                                     .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), () -> {
 
@@ -367,7 +371,7 @@ static long MEMORY_ADDRESS;
                             SidebarClickData.selectedDocumentIndex(clickData, selectedDocIndexPtr);
                             ClayVideoDemo_Arena.offset(frameArena, offset + SidebarClickData.layout().byteSize());
 
-                            CLAY_ALIAS.CLAY(Clay.id("").layout(sidebarButtonLayout)
+                            CLAY(Clay.id("").layout(sidebarButtonLayout)
                                     .backgroundColor(120, 120, 120, ClayFFM.Clay_Hovered() ? 120 : 0)
                                     .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), () -> {
                                 ClayFFM.Clay_OnHover(sidebarHoverFunction, clickData.address());
@@ -380,7 +384,7 @@ static long MEMORY_ADDRESS;
                     }
                 }); // end sidebar
 
-                CLAY_ALIAS.CLAY(Clay.id("MainContent")
+                CLAY(Clay.id("MainContent")
                         .backgroundColor(contentBackgroundColor)
                         .clip(c -> c
                                 .vertical(true)

@@ -5,12 +5,13 @@ import dmacd.ffm.clay.*;
 import dmacd.ffm.raylib.*;
 
 import java.lang.foreign.*;
+import java.util.ArrayList;
+import java.util.List;
 
-import static dmacd.ffm.clay.ClayFFM.*;
 import static dmacd.ffm.raylib.RayFFM.*;
 
 // copied from clay_renderer. converted from C to Java FFM nearly verbatim initially
-// and then tweaked very slightly
+// and then javafied over time
 // https://github.com/nicbarker/clay/blob/v0.14/renderers/raylib/clay_renderer_raylib.c
 public class RaylibRenderer {
     private static final MemorySegment Raylib_camera = Raylib.Camera.allocate(Arena.global());
@@ -216,15 +217,22 @@ public class RaylibRenderer {
 
     public static void Clay_Raylib_Render(/*(Clay_RenderCommandArray)*/ MemorySegment renderCommands, /*(Font*)*/ MemorySegment fonts) {
         var renderCommandsLength = Clay_RenderCommandArray.length(renderCommands);
+        List<Clay.RenderCommand> list = new ArrayList<>();
+        for (int i = 0; i < renderCommandsLength; i++) {
+            var cmd = ClayFFM.Clay_RenderCommandArray_Get(renderCommands, i);
+            cmd = Clay_RenderCommand.reinterpret(cmd, mainArena, null);
+            list.add(new Clay.RenderCommand(cmd));
+        }
+        Clay_Raylib_Render(list, fonts);
+    }
+    public static void Clay_Raylib_Render(/*(Clay_RenderCommandArray)*/ List< Clay.RenderCommand> renderCommands, /*(Font*)*/ MemorySegment fonts) {
         // todo: with sufficiently large list of render commands it could be better to put the scopedArena inside the loop
         try (Arena arena = Clay.scopedArena()) {
-            for (int j = 0; j < renderCommandsLength; j++) {
-                var renderCommand = Clay_RenderCommandArray_Get(renderCommands, j);
-                renderCommand = Clay_RenderCommand.reinterpret(renderCommand, arena, null);
-
-                var command = RENDER_COMMAND_TYPES[Clay_RenderCommand.commandType(renderCommand)];
-                var renderData = Clay_RenderCommand.renderData(renderCommand);
-                var boundingBox = Clay_RenderCommand.boundingBox(renderCommand);
+            for (var renderCommand : renderCommands) {
+                // todo: these should be methods of RenderCommand
+                var command = RENDER_COMMAND_TYPES[Clay_RenderCommand.commandType(renderCommand.ms())];
+                var renderData = Clay_RenderCommand.renderData(renderCommand.ms());
+                var boundingBox = Clay_RenderCommand.boundingBox(renderCommand.ms());
 
                 var bbX = Math.round(Clay_BoundingBox.x(boundingBox));
                 var bbY = Math.round(Clay_BoundingBox.y(boundingBox));
@@ -380,9 +388,8 @@ public class RaylibRenderer {
                         final int CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL = 0;
                         switch (CustomLayoutElement.type(customElement)) {
                             case CUSTOM_LAYOUT_ELEMENT_TYPE_3D_MODEL: {
-                                var rootCommand = Clay_RenderCommandArray_Get(renderCommands, j);
-                                rootCommand = Clay_RenderCommand.reinterpret(rootCommand, arena, null);
-                                var rootBox = Clay_RenderCommand.boundingBox(rootCommand);
+                                var rootCommand = renderCommands.get(0);
+                                var rootBox = Clay_RenderCommand.boundingBox(rootCommand.ms());
                                 var rootWidth = Clay_BoundingBox.width(rootBox);
                                 var rootHeight = Clay_BoundingBox.height(rootBox);
                                 float scaleValue = Math.min(Math.min(1.0f, 768 / rootHeight) * Math.max(1.0f, rootWidth / 1024), 1.5f);
