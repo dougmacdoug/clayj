@@ -623,7 +623,7 @@ public class Clay {
         }
 
         public record Sizing(MemorySegment ms) {
-            Sizing width(SizingAxis width) {
+            public Sizing width(SizingAxis width) {
                 var wMs = Clay_Sizing.width(ms);
                 Clay_SizingAxis.type(wMs, width.type);
                 var mmMs = Clay_SizingAxis.size.minMax(wMs);
@@ -634,7 +634,7 @@ public class Clay {
                 return this;
             }
 
-            Sizing height(SizingAxis height) {
+            public Sizing height(SizingAxis height) {
                 var hMs = Clay_Sizing.height(ms);
                 Clay_SizingAxis.type(hMs, height.type);
                 var mmMs = Clay_SizingAxis.size.minMax(hMs);

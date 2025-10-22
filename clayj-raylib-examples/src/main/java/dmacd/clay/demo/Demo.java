@@ -1,8 +1,10 @@
-package dmacd.clay;
+package dmacd.clay.demo;
 
-import dmacd.clay.demo.*;
+import dmacd.clay.Clay;
+import dmacd.clay.demo.ffm.*;
 import dmacd.clay.renderer.RaylibRenderer;
 import dmacd.ffm.clay.*;
+import dmacd.ffm.raylib.RayFFM;
 import dmacd.ffm.raylib.Raylib;
 
 import java.lang.foreign.Arena;
@@ -12,12 +14,6 @@ import java.util.function.Function;
 
 import static dmacd.clay.Clay.*;
 import static dmacd.clay.Clay.CLAY_ALIAS.*;
-import static dmacd.clay.Clay.FloatingAttachPointType.ATTACH_POINT_LEFT_BOTTOM;
-import static dmacd.clay.Clay.LayoutAlignmentY.ALIGN_Y_CENTER;
-import static dmacd.clay.Clay.LayoutDirection.TOP_TO_BOTTOM;
-import static dmacd.clay.renderer.RaylibRenderer.*;
-import static dmacd.ffm.clay.ClayFFM.*;
-import static dmacd.ffm.raylib.RayFFM.*;
 
 public class Demo {
 
@@ -26,9 +22,9 @@ public class Demo {
     }
     public static final MemorySegment STR_ROBOTO_FONT_PATH = Arena.global().allocateFrom("resources/Roboto-Regular.ttf");
     static final int FONT_ID_BODY_16 = 0;
-    static final MemorySegment BLACK = globalRaylibColor(0,0,0,255); // raylib color
+    static final MemorySegment BLACK = RaylibRenderer.globalRaylibColor(0,0,0,255); // raylib color
 // todo: fix this nonsense.. (other scoped return memorysegment but maybe they should all just be java class
-    static final Color COLOR_WHITE = Color.from(GLOBAL_CLAY_COLOR(255, 255, 255,255));
+    static final Color COLOR_WHITE = Color.from(Clay.GLOBAL_CLAY_COLOR(255, 255, 255,255));
 
     static MemorySegment documentsRaw = Document.allocateArray(5, Arena.global());
     static MemorySegment documents = DocumentArray.allocate(Arena.global());
@@ -117,50 +113,50 @@ public class Demo {
 static long MEMORY_ADDRESS;
 
     public static void main(String argv[]) {
-        var arena = Clay_Raylib_Initialize(1024, 768, "Introducing Clay Demo",
-                FLAG_WINDOW_RESIZABLE() | FLAG_WINDOW_HIGHDPI() | FLAG_MSAA_4X_HINT() | FLAG_VSYNC_HINT()); // Extra parameters to this function are new since the video was published
+        var arena = RaylibRenderer.Clay_Raylib_Initialize(1024, 768, "Introducing Clay Demo",
+                RayFFM.FLAG_WINDOW_RESIZABLE() | RayFFM.FLAG_WINDOW_HIGHDPI() | RayFFM.FLAG_MSAA_4X_HINT() | RayFFM.FLAG_VSYNC_HINT()); // Extra parameters to this function are new since the video was published
         var fonts = Raylib.Font.allocateArray(1, arena);
-        var font = LoadFontEx((b, a) -> fonts, STR_ROBOTO_FONT_PATH, 48,
+        var font = RayFFM.LoadFontEx((b, a) -> fonts, STR_ROBOTO_FONT_PATH, 48,
                 MemorySegment.NULL, 400);
-        SetTextureFilter(Raylib.Font.texture(font), TEXTURE_FILTER_BILINEAR());
+        RayFFM.SetTextureFilter(Raylib.Font.texture(font), RayFFM.TEXTURE_FILTER_BILINEAR());
 
-        long clayRequiredMemory = Clay_MinMemorySize();
-        var clayMemoryTop = Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory,
+        long clayRequiredMemory = ClayFFM.Clay_MinMemorySize();
+        var clayMemoryTop = ClayFFM.Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory,
                 arena.allocate(clayRequiredMemory));
-        var dims = Dimensions.of(GetScreenWidth(), (float) (GetScreenHeight() / 2));
+        var dims = Dimensions.of(RayFFM.GetScreenWidth(), (float) (RayFFM.GetScreenHeight() / 2));
         var errHandler = Clay_ErrorHandler.allocate(arena);
         var errFunc = Clay_ErrorHandler.errorHandlerFunction.allocate(Clay::errorHandler, arena);
         Clay_ErrorHandler.errorHandlerFunction(errHandler, errFunc);
-        var clayContextTop = Clay_Initialize(clayMemoryTop, dims, errHandler); // This final argument is new since the video was published
+        var clayContextTop = ClayFFM.Clay_Initialize(clayMemoryTop, dims, errHandler); // This final argument is new since the video was published
 
         var dataTop = ClayVideoDemo_Initialize();
 
         var measureTextFunc = Clay_SetMeasureTextFunction$measureTextFunction.allocate(RaylibRenderer::Raylib_MeasureText, arena);
-        Clay_SetMeasureTextFunction(measureTextFunc, fonts);
+        ClayFFM.Clay_SetMeasureTextFunction(measureTextFunc, fonts);
 
-        var clayMemoryBottom = Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory, arena.allocate(clayRequiredMemory));
+        var clayMemoryBottom = ClayFFM.Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory, arena.allocate(clayRequiredMemory));
         // todo: in practice, possibly better to clone dims
-        var clayContextBottom = Clay_Initialize(clayMemoryBottom, dims, errHandler); // This final argument is new since the video was published
+        var clayContextBottom = ClayFFM.Clay_Initialize(clayMemoryBottom, dims, errHandler); // This final argument is new since the video was published
         var dataBottom = ClayVideoDemo_Initialize();
-        Clay_SetMeasureTextFunction(measureTextFunc, fonts);
+        ClayFFM.Clay_SetMeasureTextFunction(measureTextFunc, fonts);
 
-        while (!WindowShouldClose()) {
-            beginRenderLoop();
-            ClayVideoDemo_Data.yOffset(dataBottom, (float) (GetScreenHeight() / 2));
+        while (!RayFFM.WindowShouldClose()) {
+            Clay.beginRenderLoop();
+            ClayVideoDemo_Data.yOffset(dataBottom, (float) (RayFFM.GetScreenHeight() / 2));
             var renderCommandsTop = CreateLayout(clayContextTop, dataTop); //Clay_RenderCommandArray
             var renderCommandsBottom = CreateLayout(clayContextBottom, dataBottom);
-            BeginDrawing();
-            ClearBackground(BLACK);
-            Clay_Raylib_Render(renderCommandsTop, fonts);
-            Clay_Raylib_Render(renderCommandsBottom, fonts);
-            EndDrawing();
+            RayFFM.BeginDrawing();
+            RayFFM.ClearBackground(BLACK);
+            RaylibRenderer.Clay_Raylib_Render(renderCommandsTop, fonts);
+            RaylibRenderer.Clay_Raylib_Render(renderCommandsBottom, fonts);
+            RayFFM.EndDrawing();
 // todo: more clay methods (isdebugvis etc)
-            if (IsKeyPressed(300)) { // f11 (f12 defaults to screenshot in raylib
+            if (RayFFM.IsKeyPressed(300)) { // f11 (f12 defaults to screenshot in raylib
                 showDebug = !showDebug;
             }
         }
 
-        Clay_Raylib_Close();
+        RaylibRenderer.Clay_Raylib_Close();
     }
 
     static final MemorySegment mousePosition = Raylib.Vector2.allocate(Arena.global());
@@ -173,25 +169,25 @@ static long MEMORY_ADDRESS;
    static
 /*    Clay_RenderCommandArray */ MemorySegment
     CreateLayout(MemorySegment context, /*(ClayVideoDemo_Data *)*/ MemorySegment data) {
-        Clay_SetCurrentContext(context);
-        Clay_SetDebugModeEnabled(showDebug);
+        ClayFFM.Clay_SetCurrentContext(context);
+        ClayFFM.Clay_SetDebugModeEnabled(showDebug);
 
-       Clay_SetLayoutDimensions(Dimensions.of(GetScreenWidth(), GetScreenHeight() / 2));
-       MemorySegment mp = GetMousePosition((b,a) ->mousePosition);
+       ClayFFM.Clay_SetLayoutDimensions(Dimensions.of(RayFFM.GetScreenWidth(), RayFFM.GetScreenHeight() / 2));
+       MemorySegment mp = RayFFM.GetMousePosition((b, a) ->mousePosition);
 
         Raylib.Vector2.y(mp, Raylib.Vector2.y(mp) - ClayVideoDemo_Data.yOffset(data));
-        var scrollDelta = GetMouseWheelMoveV((b,a)->mouseScroll);
+        var scrollDelta = RayFFM.GetMouseWheelMoveV((b, a)->mouseScroll);
 
-       Clay_SetPointerState(vector2FromRaylibV2(mp), IsMouseButtonDown(0));
-       Clay_UpdateScrollContainers(true,
-               vector2FromRaylibV2(scrollDelta), GetFrameTime());
+       ClayFFM.Clay_SetPointerState(vector2FromRaylibV2(mp), RayFFM.IsMouseButtonDown(0));
+       ClayFFM.Clay_UpdateScrollContainers(true,
+               vector2FromRaylibV2(scrollDelta), RayFFM.GetFrameTime());
        return ClayVideoDemo_CreateLayout(data);
     }
 
     static void RenderDropdownMenuItem(String str) {
-        CLAY(id("").layout(l -> l
-                .padding(CLAY_PADDING_ALL(16))), () -> {
-            CLAY_TEXT(str, cfg -> cfg
+        CLAY_ALIAS.CLAY(Clay.id("").layout(l -> l
+                .padding(Clay.CLAY_PADDING_ALL(16))), () -> {
+            CLAY_ALIAS.CLAY_TEXT(str, cfg -> cfg
                     .fontId(FONT_ID_BODY_16)
                     .fontSize(16)
                     .textColor(255, 255, 255, 255)
@@ -200,12 +196,12 @@ static long MEMORY_ADDRESS;
     }
 
     static void RenderHeaderButton(String text) {
-        CLAY(id("") // todo: anon()
+        CLAY_ALIAS.CLAY(Clay.id("") // todo: anon()
                 .layout(l -> l
                         .padding(16, 16, 8, 8))
                 .backgroundColor(140, 140, 140, 255)
-                .cornerRadius(CLAY_CORNER_RADIUS(5)), () -> {
-            CLAY_TEXT(text, cfg -> cfg
+                .cornerRadius(Clay.CLAY_CORNER_RADIUS(5)), () -> {
+            CLAY_ALIAS.CLAY_TEXT(text, cfg -> cfg
                     .fontId(FONT_ID_BODY_16)
                     .fontSize(16)
                     .textColor(255, 255, 255, 255));
@@ -227,7 +223,7 @@ static long MEMORY_ADDRESS;
         var clickData = SidebarClickData.reinterpret(msUserData, Arena.global(), null);
 
         // If this button was clicked
-        if (Clay_PointerData.state(pointerData) == CLAY_POINTER_DATA_PRESSED_THIS_FRAME()) {
+        if (Clay_PointerData.state(pointerData) == ClayFFM.CLAY_POINTER_DATA_PRESSED_THIS_FRAME()) {
             var requestDocumentIndex = SidebarClickData.requestedDocumentIndex(clickData);
             if (requestDocumentIndex >= 0 && requestDocumentIndex < DocumentArray.length(documents)) {
                 // Select the corresponding document
@@ -244,7 +240,7 @@ static long MEMORY_ADDRESS;
         var frameArena = ClayVideoDemo_Data.frameArena(data);
         ClayVideoDemo_Arena.offset(frameArena, 0);
 
-        Clay_BeginLayout();
+        ClayFFM.Clay_BeginLayout();
 
 // applies the setting directly to the memory segment
         Function<LayoutConfig.Sizing, LayoutConfig.Sizing> layoutExpand = (s) -> s
@@ -254,64 +250,64 @@ static long MEMORY_ADDRESS;
         final Clay.Color contentBackgroundColor = Color.from(Color.scoped(90, 90, 90, 255));
 
         // Build UI here
-        CLAY(id("OuterContainer")
+        CLAY_ALIAS.CLAY(Clay.id("OuterContainer")
                 .backgroundColor(43, 41, 51, 255)
                 .layout(l -> l
-                        .layoutDirection(TOP_TO_BOTTOM)
+                        .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
                         .sizing(layoutExpand)
-                        .padding(CLAY_PADDING_ALL(16))
+                        .padding(Clay.CLAY_PADDING_ALL(16))
                         .childGap(16)
                 ), () -> {
             // Child elements go inside braces
-            CLAY(id("HeaderBar")
+            CLAY_ALIAS.CLAY(Clay.id("HeaderBar")
                     .layout(l -> l
                             .sizing(s -> s
-                                    .height(CLAY_SIZING_FIXED(60))
-                                    .width(CLAY_SIZING_GROW(0))
+                                    .height(Clay.CLAY_SIZING_FIXED(60))
+                                    .width(Clay.CLAY_SIZING_GROW(0))
                             )
                             .padding(16, 16, 0, 0)
                             .childGap(16)
                             .childAlignment(a -> a
-                                    .y(ALIGN_Y_CENTER))
+                                    .y(LayoutAlignmentY.ALIGN_Y_CENTER))
                     )
                     .backgroundColor(contentBackgroundColor)
-                    .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
+                    .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), () -> {
                 // Header buttons go here
-                CLAY(id("FileButton")
+                CLAY_ALIAS.CLAY(Clay.id("FileButton")
                         .layout(l -> l.padding(16, 16, 8, 8))
                         .backgroundColor(140, 140, 140, 255)
-                        .cornerRadius(CLAY_CORNER_RADIUS(5)), () -> {
-                    CLAY_TEXT("File", cfg -> cfg
+                        .cornerRadius(Clay.CLAY_CORNER_RADIUS(5)), () -> {
+                    CLAY_ALIAS.CLAY_TEXT("File", cfg -> cfg
                             .fontId(FONT_ID_BODY_16)
                             .fontSize(16)
                             .textColor(255, 255, 255, 255)
                     );
                     int CLAY_ATTACH_TO_PARENT = 1;
                     boolean fileMenuVisible =
-                            Clay_PointerOver(getElementId("FileButton"))
+                            ClayFFM.Clay_PointerOver(Clay.getElementId("FileButton"))
                                     ||
-                                    Clay_PointerOver(getElementId("FileMenu"));
+                                    ClayFFM.Clay_PointerOver(Clay.getElementId("FileMenu"));
 
                     if (fileMenuVisible) { // Below has been changed slightly to fix the small bug where the menu would dismiss when mousing over the top gap
-                        CLAY(id("FileMenu")
+                        CLAY_ALIAS.CLAY(Clay.id("FileMenu")
                                 .floating(f -> f
                                         .attachTo(CLAY_ATTACH_TO_PARENT)
                                         .attachPoints(a -> a
-                                                .parent(ATTACH_POINT_LEFT_BOTTOM)
+                                                .parent(FloatingAttachPointType.ATTACH_POINT_LEFT_BOTTOM)
                                         )
                                 )
                                 .layout(l -> l
                                         .padding(0, 0, 8, 8)
                                 ), () -> {
-                            CLAY(id("")
+                            CLAY_ALIAS.CLAY(Clay.id("")
                                     .layout(l -> l
-                                            .layoutDirection(TOP_TO_BOTTOM)
+                                            .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
                                             .sizing(s -> s
-                                                    .width(CLAY_SIZING_FIXED(200))
+                                                    .width(Clay.CLAY_SIZING_FIXED(200))
                                             )
                                     )
                                     .backgroundColor(40, 40, 40, 255)
-                                    .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
+                                    .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), () -> {
                                 // Render dropdown items here
                                 RenderDropdownMenuItem("New");
                                 RenderDropdownMenuItem("Open");
@@ -321,35 +317,35 @@ static long MEMORY_ADDRESS;
                     }
                 }); // end file button
                 RenderHeaderButton("Edit");
-                CLAY(id("").layout(l -> l.sizing(CLAY_SIZING_GROW(0))), ()->{});
+                CLAY_ALIAS.CLAY(Clay.id("").layout(l -> l.sizing(Clay.CLAY_SIZING_GROW(0))), ()->{});
                 RenderHeaderButton("Upload");
                 RenderHeaderButton("Media");
                 RenderHeaderButton("Support");
             }); // end header bar
 
-            CLAY(id("LowerContent")
+            CLAY_ALIAS.CLAY(Clay.id("LowerContent")
                     .layout(l -> l.sizing(layoutExpand).childGap(16)), () -> {
-                CLAY(id("Sidebar")
+                CLAY_ALIAS.CLAY(Clay.id("Sidebar")
                         .backgroundColor(contentBackgroundColor)
                         .layout(l -> l
-                                .layoutDirection(TOP_TO_BOTTOM)
-                                .padding(CLAY_PADDING_ALL(16))
+                                .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
+                                .padding(Clay.CLAY_PADDING_ALL(16))
                                 .childGap(8)
                                 .sizing(s -> s
-                                        .width(CLAY_SIZING_FIXED(250))
-                                        .height(CLAY_SIZING_GROW(0))
+                                        .width(Clay.CLAY_SIZING_FIXED(250))
+                                        .height(Clay.CLAY_SIZING_GROW(0))
                                 )), () -> {
                     Function<LayoutConfig, LayoutConfig> sidebarButtonLayout = l -> l
-                            .sizing(s -> s.width(CLAY_SIZING_GROW(0)))
-                            .padding(CLAY_PADDING_ALL(16));
+                            .sizing(s -> s.width(Clay.CLAY_SIZING_GROW(0)))
+                            .padding(Clay.CLAY_PADDING_ALL(16));
                     for (int i = 0; i < 5; i++) {
                         var docs = DocumentArray.documents(documents);
                         var document = Document.asSlice(docs, i);
 
                         if (i == ClayVideoDemo_Data.selectedDocumentIndex(data)) {
-                            CLAY(id("").layout(sidebarButtonLayout)
+                            CLAY_ALIAS.CLAY(Clay.id("").layout(sidebarButtonLayout)
                                     .backgroundColor(120, 120, 120, 255)
-                                    .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
+                                    .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), () -> {
 
                                 CLAY_TEXT(Document.title(document), cfg -> cfg
                                         .fontId(FONT_ID_BODY_16)
@@ -371,10 +367,10 @@ static long MEMORY_ADDRESS;
                             SidebarClickData.selectedDocumentIndex(clickData, selectedDocIndexPtr);
                             ClayVideoDemo_Arena.offset(frameArena, offset + SidebarClickData.layout().byteSize());
 
-                            CLAY(id("").layout(sidebarButtonLayout)
-                                    .backgroundColor(120, 120, 120, Clay_Hovered() ? 120 : 0)
-                                    .cornerRadius(CLAY_CORNER_RADIUS(8)), () -> {
-                                Clay_OnHover(sidebarHoverFunction, clickData.address());
+                            CLAY_ALIAS.CLAY(Clay.id("").layout(sidebarButtonLayout)
+                                    .backgroundColor(120, 120, 120, ClayFFM.Clay_Hovered() ? 120 : 0)
+                                    .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), () -> {
+                                ClayFFM.Clay_OnHover(sidebarHoverFunction, clickData.address());
                                 CLAY_TEXT(Document.title(document), c -> c
                                         .fontId(FONT_ID_BODY_16)
                                         .fontSize(20)
@@ -384,15 +380,15 @@ static long MEMORY_ADDRESS;
                     }
                 }); // end sidebar
 
-                CLAY(id("MainContent")
+                CLAY_ALIAS.CLAY(Clay.id("MainContent")
                         .backgroundColor(contentBackgroundColor)
                         .clip(c -> c
                                 .vertical(true)
-                                .childOffset(Clay_GetScrollOffset((b, a) -> scrollOffset)))
+                                .childOffset(ClayFFM.Clay_GetScrollOffset((b, a) -> scrollOffset)))
                         .layout(l -> l
-                                .layoutDirection(TOP_TO_BOTTOM)
+                                .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
                                 .childGap(16)
-                                .padding(CLAY_PADDING_ALL(16))
+                                .padding(Clay.CLAY_PADDING_ALL(16))
                                 .sizing(layoutExpand)), () -> {
                     var docs = DocumentArray.documents(documents);
                     var selectedDocument = Document.asSlice(docs, ClayVideoDemo_Data.selectedDocumentIndex(data));
@@ -409,9 +405,9 @@ static long MEMORY_ADDRESS;
             }); // end lowercontent
         }); // end outercontainer
 
-        var renderCommands = Clay_EndLayout((b,a)->Clay.allocateScoped((int)b));
+        var renderCommands = ClayFFM.Clay_EndLayout((b, a)->Clay.allocateScoped((int)b));
         for (int i = 0; i < Clay_RenderCommandArray.length(renderCommands); i++) {
-            var cmd = Clay_RenderCommandArray_Get(renderCommands, i);
+            var cmd = ClayFFM.Clay_RenderCommandArray_Get(renderCommands, i);
             var bb = Clay_RenderCommand.boundingBox(cmd);
             Clay_BoundingBox.y(bb, Clay_BoundingBox.y(bb) + ClayVideoDemo_Data.yOffset(data));
         }
