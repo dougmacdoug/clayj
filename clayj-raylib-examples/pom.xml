@@ -22,5 +22,10 @@
         <artifactId>clayj-api</artifactId>
         <version>${project.version}</version>
     </dependency>
+    <dependency>
+        <groupId>com.github.dougmacdoug</groupId>
+        <artifactId>clayj-raylib-renderer</artifactId>
+        <version>${project.version}</version>
+    </dependency>
 </dependencies>
 </project>

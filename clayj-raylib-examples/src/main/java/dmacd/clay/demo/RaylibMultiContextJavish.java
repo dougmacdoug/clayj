@@ -2,17 +2,15 @@ package dmacd.clay.demo;
 
 import dmacd.clay.Clay;
 import dmacd.clay.Clay.LayoutConfig.Sizing;
-import dmacd.clay.demo.ffm.*;
 import dmacd.clay.demo.util.DemoDocument;
 import dmacd.clay.demo.util.VideoDemoData;
-import dmacd.clay.renderer.RaylibRenderer;
+import dmacd.clay.renderer.raylib.RaylibRenderer;
 import dmacd.ffm.clay.*;
 import dmacd.ffm.raylib.RayFFM;
 import dmacd.ffm.raylib.Raylib;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -360,7 +358,7 @@ public class RaylibMultiContextJavish {
         if (yOffset != 0) {
             // fixup Y offset for all commands for context 2
             for (var cmd : renderCommands) {
-                var bb = new BoundingBox(Clay_RenderCommand.boundingBox(cmd.ms()));
+                var bb = cmd.boundingBox();
                 bb.y(bb.y() + yOffset);
             }
         }
