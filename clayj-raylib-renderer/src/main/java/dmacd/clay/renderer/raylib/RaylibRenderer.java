@@ -1,10 +1,13 @@
-package dmacd.clay.renderer;
+package dmacd.clay.renderer.raylib;
 
 import dmacd.clay.Clay;
 import dmacd.ffm.clay.*;
-import dmacd.ffm.raylib.*;
+import dmacd.ffm.raylib.RayFFM;
+import dmacd.ffm.raylib.Raylib;
 
-import java.lang.foreign.*;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -231,13 +234,13 @@ public class RaylibRenderer {
             for (var renderCommand : renderCommands) {
                 // todo: these should be methods of RenderCommand
                 var command = RENDER_COMMAND_TYPES[Clay_RenderCommand.commandType(renderCommand.ms())];
-                var renderData = Clay_RenderCommand.renderData(renderCommand.ms());
-                var boundingBox = Clay_RenderCommand.boundingBox(renderCommand.ms());
+                var renderData = renderCommand.renderData();
+                var boundingBox = renderCommand.boundingBox();
 
-                var bbX = Math.round(Clay_BoundingBox.x(boundingBox));
-                var bbY = Math.round(Clay_BoundingBox.y(boundingBox));
-                var bbWidth = Math.round(Clay_BoundingBox.width(boundingBox));
-                var bbHeight = Math.round(Clay_BoundingBox.height(boundingBox));
+                var bbX = Math.round(boundingBox.x());
+                var bbY = Math.round(boundingBox.y());
+                var bbWidth = Math.round(boundingBox.width());
+                var bbHeight = Math.round(boundingBox.height());
 
                 switch (command) {
                     case RENDER_COMMAND_TYPE_TEXT: {
@@ -327,54 +330,54 @@ public class RaylibRenderer {
                         ClayColorToRaylibColor(clayColor, color);
                         // Left border
                         if (Clay_BorderWidth.left(bw) > 0) {
-                            DrawRectangle(bbX, Math.round(Clay_BoundingBox.y(boundingBox) + Clay_CornerRadius.topLeft(cornerRadius)),
-                                    Clay_BorderWidth.left(bw), Math.round(Clay_BoundingBox.height(boundingBox) - Clay_CornerRadius.topLeft(cornerRadius) - Clay_CornerRadius.bottomLeft(cornerRadius)),
+                            DrawRectangle(bbX, Math.round(boundingBox.y() + Clay_CornerRadius.topLeft(cornerRadius)),
+                                    Clay_BorderWidth.left(bw), Math.round(boundingBox.height() - Clay_CornerRadius.topLeft(cornerRadius) - Clay_CornerRadius.bottomLeft(cornerRadius)),
                                     color);
                         }
                         // Right border
                         if (Clay_BorderWidth.right(bw) > 0) {
-                            DrawRectangle(Math.round(Clay_BoundingBox.x(boundingBox) + Clay_BoundingBox.width(boundingBox) - Clay_BorderWidth.right(bw)),
-                                    Math.round(Clay_BoundingBox.y(boundingBox) + Clay_CornerRadius.topRight(cornerRadius)),
-                                    Clay_BorderWidth.right(bw), Math.round(Clay_BoundingBox.height(boundingBox) - Clay_CornerRadius.topRight(cornerRadius) - Clay_CornerRadius.bottomRight(cornerRadius)),
+                            DrawRectangle(Math.round(boundingBox.x() + boundingBox.width() - Clay_BorderWidth.right(bw)),
+                                    Math.round(boundingBox.y() + Clay_CornerRadius.topRight(cornerRadius)),
+                                    Clay_BorderWidth.right(bw), Math.round(boundingBox.height() - Clay_CornerRadius.topRight(cornerRadius) - Clay_CornerRadius.bottomRight(cornerRadius)),
                                     color);
                         }
                         // Top border
                         if (Clay_BorderWidth.top(bw) > 0) {
-                            DrawRectangle(Math.round(Clay_BoundingBox.x(boundingBox) + Clay_CornerRadius.topLeft(cornerRadius)), bbY,
-                                    Math.round(Clay_BoundingBox.width(boundingBox) - Clay_CornerRadius.topLeft(cornerRadius) - Clay_CornerRadius.topRight(cornerRadius)),
+                            DrawRectangle(Math.round(boundingBox.x() + Clay_CornerRadius.topLeft(cornerRadius)), bbY,
+                                    Math.round(boundingBox.width() - Clay_CornerRadius.topLeft(cornerRadius) - Clay_CornerRadius.topRight(cornerRadius)),
                                     Clay_BorderWidth.top(bw), color);
                         }
                         // Bottom border
                         if (Clay_BorderWidth.bottom(bw) > 0) {
-                            DrawRectangle(Math.round(Clay_BoundingBox.x(boundingBox) + Clay_CornerRadius.bottomLeft(cornerRadius)),
-                                    Math.round(Clay_BoundingBox.y(boundingBox) + Clay_BoundingBox.height(boundingBox) - Clay_BorderWidth.bottom(bw)),
-                                    Math.round(Clay_BoundingBox.width(boundingBox) - Clay_CornerRadius.bottomLeft(cornerRadius) - Clay_CornerRadius.bottomRight(cornerRadius)),
+                            DrawRectangle(Math.round(boundingBox.x() + Clay_CornerRadius.bottomLeft(cornerRadius)),
+                                    Math.round(boundingBox.y() + boundingBox.height() - Clay_BorderWidth.bottom(bw)),
+                                    Math.round(boundingBox.width() - Clay_CornerRadius.bottomLeft(cornerRadius) - Clay_CornerRadius.bottomRight(cornerRadius)),
                                     Clay_BorderWidth.bottom(bw), color);
                         }
                         var center = Raylib.Vector2.allocate(arena);
                         if (Clay_CornerRadius.topLeft(cornerRadius) > 0) {
-                            Raylib.Vector2.x(center, Math.round(Clay_BoundingBox.x(boundingBox) + Clay_CornerRadius.topLeft(cornerRadius)));
-                            Raylib.Vector2.y(center, Math.round(Clay_BoundingBox.y(boundingBox) + Clay_CornerRadius.topLeft(cornerRadius)));
+                            Raylib.Vector2.x(center, Math.round(boundingBox.x() + Clay_CornerRadius.topLeft(cornerRadius)));
+                            Raylib.Vector2.y(center, Math.round(boundingBox.y() + Clay_CornerRadius.topLeft(cornerRadius)));
 
                             DrawRing(center, Math.round(Clay_CornerRadius.topLeft(cornerRadius) - Clay_BorderWidth.top(bw)),
                                     Clay_CornerRadius.topLeft(cornerRadius), 180, 270, 10, color);
                         }
                         if (Clay_CornerRadius.topRight(cornerRadius) > 0) {
-                            Raylib.Vector2.x(center, Math.round(Clay_BoundingBox.x(boundingBox) + Clay_BoundingBox.width(boundingBox) - Clay_CornerRadius.topRight(cornerRadius)));
-                            Raylib.Vector2.y(center, Math.round(Clay_BoundingBox.y(boundingBox) + Clay_CornerRadius.topRight(cornerRadius)));
+                            Raylib.Vector2.x(center, Math.round(boundingBox.x() + boundingBox.width() - Clay_CornerRadius.topRight(cornerRadius)));
+                            Raylib.Vector2.y(center, Math.round(boundingBox.y() + Clay_CornerRadius.topRight(cornerRadius)));
 
                             DrawRing(center, Math.round(Clay_CornerRadius.topRight(cornerRadius) - Clay_BorderWidth.top(bw)),
                                     Clay_CornerRadius.topRight(cornerRadius), 270, 360, 10, color);
                         }
                         if (Clay_CornerRadius.bottomLeft(cornerRadius) > 0) {
-                            Raylib.Vector2.x(center, Math.round(Clay_BoundingBox.x(boundingBox) + Clay_CornerRadius.bottomLeft(cornerRadius)));
-                            Raylib.Vector2.y(center, Math.round(Clay_BoundingBox.y(boundingBox) + Clay_BoundingBox.height(boundingBox) - Clay_CornerRadius.bottomLeft(cornerRadius)));
+                            Raylib.Vector2.x(center, Math.round(boundingBox.x() + Clay_CornerRadius.bottomLeft(cornerRadius)));
+                            Raylib.Vector2.y(center, Math.round(boundingBox.y() + boundingBox.height() - Clay_CornerRadius.bottomLeft(cornerRadius)));
                             DrawRing(center, Math.round(Clay_CornerRadius.bottomLeft(cornerRadius) - Clay_BorderWidth.bottom(bw)),
                                     Clay_CornerRadius.bottomLeft(cornerRadius), 90, 180, 10, color);
                         }
                         if (Clay_CornerRadius.bottomRight(cornerRadius) > 0) {
-                            Raylib.Vector2.x(center, Math.round(Clay_BoundingBox.x(boundingBox) + Clay_BoundingBox.width(boundingBox) - Clay_CornerRadius.bottomRight(cornerRadius)));
-                            Raylib.Vector2.y(center, Math.round(Clay_BoundingBox.y(boundingBox) + Clay_BoundingBox.height(boundingBox) - Clay_CornerRadius.bottomRight(cornerRadius)));
+                            Raylib.Vector2.x(center, Math.round(boundingBox.x() + boundingBox.width() - Clay_CornerRadius.bottomRight(cornerRadius)));
+                            Raylib.Vector2.y(center, Math.round(boundingBox.y() + boundingBox.height() - Clay_CornerRadius.bottomRight(cornerRadius)));
 
                             DrawRing(center, Math.round(Clay_CornerRadius.bottomRight(cornerRadius) - Clay_BorderWidth.bottom(bw)),
                                     Clay_CornerRadius.bottomRight(cornerRadius), 0.1f, 90, 10, color);

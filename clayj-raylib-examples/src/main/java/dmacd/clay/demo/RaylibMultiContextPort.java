@@ -2,7 +2,7 @@ package dmacd.clay.demo;
 
 import dmacd.clay.Clay;
 import dmacd.clay.demo.ffm.*;
-import dmacd.clay.renderer.RaylibRenderer;
+import dmacd.clay.renderer.raylib.RaylibRenderer;
 import dmacd.ffm.clay.*;
 import dmacd.ffm.raylib.RayFFM;
 import dmacd.ffm.raylib.Raylib;

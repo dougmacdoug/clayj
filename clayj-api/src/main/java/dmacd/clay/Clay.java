@@ -120,6 +120,21 @@ public class Clay {
         }
     }
 
+    public record CornerRadius(MemorySegment ms) {
+        public float topLeft() {
+            return Clay_CornerRadius.topLeft(ms);
+        }
+        public float topRight() {
+            return Clay_CornerRadius.topRight(ms);
+        }
+        public float bottomLeft() {
+            return Clay_CornerRadius.bottomLeft(ms);
+        }
+        public float bottomRight() {
+            return Clay_CornerRadius.bottomRight(ms);
+        }
+    }
+
     public record BoundingBox(MemorySegment ms) {
         public float x() { return Clay_BoundingBox.x(ms); }
         public float y() { return Clay_BoundingBox.y(ms); }
@@ -219,7 +234,16 @@ public class Clay {
         //  we need to use Clay internal functions, but this means
         // clayj is tied to the version it is built against
         // if internals change, clayj will need to be updated
-//        ClayFFM.Clay__OpenElement(); // open element happens in id() to support Scroll childOffset()
+
+        // `ClayFFM.Clay__OpenElement();` used to happen here
+        // but had to be moved to id() in order to
+        // get scroll working, to call scroll functions while configuring
+        // elements, the element needs to be opened first.
+        // if we changed `id` to be another builder and changed this method to take
+        // a function instead of Clay element then we could open and run the config
+        // here (probably),  but there could be other problems with hover
+        // the current method works for both hover and scroll
+
         ClayFFM.Clay__ConfigureOpenElement(element.elmMs);
 
         if (children != null) {
@@ -944,7 +968,7 @@ public class Clay {
 
     /// Controls where a floating element is offset relative to its parent element.
     ///
-    /// Note: see https://github.com/user-attachments/assets/b8c6dfaa-c1b1-41a4-be55-013473e4a6ce for a visual explanation.
+    /// Note: [see visual explanation](https://github.com/user-attachments/assets/b8c6dfaa-c1b1-41a4-be55-013473e4a6ce)
     public enum FloatingAttachPointType {
         ATTACH_POINT_LEFT_TOP,
         ATTACH_POINT_LEFT_CENTER,
@@ -1084,7 +1108,29 @@ public class Clay {
         ClayFFM.Clay_OnHover(func, 0);
     }
     public record RenderCommand(MemorySegment ms) {
+        public BoundingBox boundingBox() {
+            return new BoundingBox(Clay_RenderCommand.boundingBox(ms));
+        }
 
+        public int id() {
+            return Clay_RenderCommand.id(ms);
+        }
+
+        public MemorySegment renderData() {
+            return Clay_RenderCommand.renderData(ms);
+        }
+
+        public MemorySegment userData() {
+            return Clay_RenderCommand.userData(ms);
+        }
+
+        public int zIndex() {
+            return Clay_RenderCommand.zIndex(ms);
+        }
+
+        public RenderCommandType commandType() {
+            return RenderCommandType.values()[Clay_RenderCommand.commandType(ms)];
+        }
     }
     public static List<RenderCommand> endLayout() {
         List<RenderCommand> list = new ArrayList<>();
