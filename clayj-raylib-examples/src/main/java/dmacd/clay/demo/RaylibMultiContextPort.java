@@ -28,7 +28,7 @@ public class RaylibMultiContextPort {
     static final int FONT_ID_BODY_16 = 0;
     static final MemorySegment BLACK = RaylibRenderer.globalRaylibColor(0,0,0,255); // raylib color
 // todo: fix this nonsense.. (other scoped return memorysegment but maybe they should all just be java class
-    static final Color COLOR_WHITE = Color.from(Clay.GLOBAL_CLAY_COLOR(255, 255, 255,255));
+    static final Color COLOR_WHITE = Clay.globalClayColor(255, 255, 255,255);
 
     static MemorySegment documentsRaw = Document.allocateArray(5, Arena.global());
     static MemorySegment documents = DocumentArray.allocate(Arena.global());
@@ -219,11 +219,8 @@ static long MEMORY_ADDRESS;
             long userData
     ) {
         var msUserData = MemorySegment.ofAddress(userData);
-        // todo: probably should be the Clay.arena .. scopedArena has overhead..
-        // the reason clay.arena is not public is because it will encourage allocating
-        // and growing memory, but for pure scope we would like to access it from these
-        // static callback functions..
-        // todo: could make the clay.arena() a class that doesnt allow allocating but passes scope() correctly
+        // the arena is just used for reinterpret scope, doesn't matter here
+        // if it did matter you could store it in a static variable after initialize()
         var clickData = SidebarClickData.reinterpret(msUserData, Arena.global(), null);
 
         // If this button was clicked
@@ -232,7 +229,7 @@ static long MEMORY_ADDRESS;
             if (requestDocumentIndex >= 0 && requestDocumentIndex < DocumentArray.length(documents)) {
                 // Select the corresponding document
                 var ptr = SidebarClickData.selectedDocumentIndex(clickData);
-                ptr.setAtIndex(ValueLayout.JAVA_INT, 0, requestDocumentIndex); // todo: test
+                ptr.setAtIndex(ValueLayout.JAVA_INT, 0, requestDocumentIndex);
             }
         }
     }
@@ -250,8 +247,7 @@ static long MEMORY_ADDRESS;
         Function<LayoutConfig.Sizing, LayoutConfig.Sizing> layoutExpand = (s) -> s
                 .width(LayoutConfig.Sizing.grow(0))
                 .height(LayoutConfig.Sizing.grow(0));
-// todo: fix
-        final Clay.Color contentBackgroundColor = Color.from(Color.scoped(90, 90, 90, 255));
+        final Clay.Color contentBackgroundColor = Color.scoped(90, 90, 90, 255);
 
         // Build UI here
         CLAY(Clay.id("OuterContainer")
