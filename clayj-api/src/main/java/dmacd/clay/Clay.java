@@ -81,23 +81,14 @@ public class Clay {
             return ms;
         }
     }
+
     // todo: annoyingly bad
-    public static class Color {
-        private final MemorySegment ms;
-        private Color(MemorySegment ms) {
-            this.ms = ms;
-        }
-        public static MemorySegment scoped(float r, float g, float b, float a) {
+        public record Color(MemorySegment ms) {
+        public static Color scoped(float r, float g, float b, float a) {
             var ms = allocateScoped(Clay_Color.layout());
-            Clay_Color.r(ms, r);
-            Clay_Color.g(ms, g);
-            Clay_Color.b(ms, b);
-            Clay_Color.a(ms, a);
-            return ms;
+            return new Color(ms).set(r, g, b, a);
         }
-        public static Color from(MemorySegment ms) {
-            return new Color(ms);
-        }
+
         public Color set(float r, float g, float b, float a) {
             Clay_Color.r(ms, r);
             Clay_Color.g(ms, g);
@@ -105,7 +96,44 @@ public class Clay {
             Clay_Color.a(ms, a);
             return this;
         }
+
+        public float r() {
+            return Clay_Color.r(ms);
+        }
+
+        public Color r(float r) {
+            Clay_Color.r(ms, r);
+            return this;
+        }
+
+        public float g() {
+            return Clay_Color.g(ms);
+        }
+
+        public Color g(float g) {
+            Clay_Color.g(ms, g);
+            return this;
+        }
+
+        public float b() {
+            return Clay_Color.b(ms);
+        }
+
+        public Color b(float b) {
+            Clay_Color.b(ms, b);
+            return this;
+        }
+
+        public float a() {
+            return Clay_Color.a(ms);
+        }
+
+        public Color a(float a) {
+            Clay_Color.a(ms, a);
+            return this;
+        }
     }
+
 // todo: these need to be better
     public record Vector2(MemorySegment ms) {
 
@@ -212,7 +240,19 @@ public class Clay {
             segments.add(ms);
         }
         allocations.clear();
+
+        // due to the way the hover function works we need to keep 2 frames of callbacks
+        // due to the way upcallstubs work, we need to close the hover arena to reclaim
+        // function pointer memory which is small but grows every frame if not reclaimed.
+        if(hoverArena2 != null) {
+            hoverArena2.close();
+        }
+        hoverArena2 = hoverArena;        // previous frame
+        hoverArena = Arena.ofConfined(); // current frame
     }
+
+    static Arena hoverArena = null;
+    static Arena hoverArena2 = null;
 
     public static void clay(Clay element) {
         clay(element, null);
@@ -272,9 +312,8 @@ public class Clay {
      * <p>
      * This is not needed in clay() declarations where it is
      * automatically in use. Use this for other code blocks that
-     * run frequently.
+     * run frequently. Clay_Raylib_Render has an example.
      * <p>
-     * See {@link dmacd.clay.renderer.RaylibRenderer#Clay_Raylib_Render(MemorySegment, MemorySegment)} for example.
      * @return Arena - makes allocations reusable after closing
      */
     public static Arena scopedArena() {
@@ -339,7 +378,7 @@ public class Clay {
 
         public TextElementConfig textColor(float r, float g, float b, float a) {
             var colorMS = Clay_TextElementConfig.textColor(ms);
-            Color.from(colorMS).set(r, g, b, a);
+            new Color(colorMS).set(r, g, b, a);
             return this;
         }
 
@@ -475,7 +514,7 @@ public class Clay {
 
     public Clay backgroundColor(float r, float g, float b, float a) {
         var colorMS = Clay_ElementDeclaration.backgroundColor(elmMs);
-        Color.from(colorMS).set(r, g, b, a);
+        new Color(colorMS).set(r, g, b, a);
         return this;
     }
 
@@ -540,7 +579,7 @@ public class Clay {
 
         public BorderElementConfig color(float r, float g, float b, float a) {
             var colorMs = Clay_BorderElementConfig.color(ms);
-            Color.from(colorMs).set(r, g, b, a);
+            new Color(colorMs).set(r, g, b, a);
             return this;
         }
 
@@ -812,13 +851,9 @@ public class Clay {
         return ClayFFM.Clay_MinMemorySize();
     }
 
-    public static MemorySegment GLOBAL_CLAY_COLOR(float r, float g, float b, float a) {
+    public static Color globalClayColor(float r, float g, float b, float a) {
         var ms = Clay_Color.allocate(GLOBAL_ARENA);
-        Clay_Color.r(ms, r);
-        Clay_Color.g(ms, g);
-        Clay_Color.b(ms, b);
-        Clay_Color.a(ms, a);
-        return ms;
+        return new Color(ms).set(r, g, b, a);
     }
 
     public static void clayText(ClayString text, Function<TextElementConfig, TextElementConfig> textConfig) {
@@ -1063,14 +1098,33 @@ public class Clay {
 
 
 // endregion
+
+    /**
+     * Clay Hover Function
+     */
     @FunctionalInterface
     public interface ClayHoverFunction {
+        /**
+         * Callback function receives the Element and Pointer State
+         * @param e {@link ElementData }
+         * @param p PointerData
+         */
         void onHover(Clay.ElementData e, PointerData p);
     }
+    /// Clay_ElementData wrapper
+    public record ElementData(MemorySegment ms){
+        public BoundingBox boundingBox() {
+            var bb = Clay_ElementData.boundingBox(ms);
+            return new BoundingBox(bb);
+        }
+        public boolean found() {
+            return Clay_ElementData.found(ms);
+        }
+    }
 
-    public record ElementData(MemorySegment ms){}
+    /// Clay_PointerData wrapper
     public record PointerData(MemorySegment ms) {
-        Vector2 position() {
+        public Vector2 position() {
             var p = Clay_PointerData.position(ms);
             return new Vector2(p);
         }
@@ -1095,16 +1149,32 @@ public class Clay {
             var state = Clay_PointerData.state(ms);
             return state == PointerDataInteractionState.POINTER_DATA_RELEASED_THIS_FRAME.ordinal();
         }
-
     }
 
+    /**
+     * <pre>clay(id("hoverMenu"), ()-> {
+     *     onHover((e, p)-> { if(p.pressedThisFrame()) doThing(); };
+     *     clayText(ClayString.literal("Click Me"));
+     *  });</pre>
+     *
+     * NOTE: This call requires use of {@link #beginRenderLoop()} in order to release memory
+     *       allocated for the function pointer.
+     *
+      * @param hoverFunc hover function (designed for lambda + closure)
+     */
     public static void onHover(ClayHoverFunction hoverFunc) {
-        // todo: this should be new temparena
+        // todo: this could be reworked but it's a very unique problem
+        //       the arena does not allocate the function pointer but the function pointer
+        //       can only be freed if the arena closes.
+        //       also the onhover is set in one frame but must exist for the next frame
+        //       currently 2 hover arenas are used 1 for the current function, 1 to
+        //       to keep the pointers alive for the 2nd frame and then get closed to release memory
+        //       requires beginLoop() to release or it will fill memory
         var func = Clay_OnHover$onHoverFunction.allocate((elementData, pointerData, userData) ->{
             var pd = new PointerData(pointerData);
             var elm = new ElementData(elementData);
             hoverFunc.onHover(elm, pd);
-        }, arena);
+        }, hoverArena);
         ClayFFM.Clay_OnHover(func, 0);
     }
     public record RenderCommand(MemorySegment ms) {
@@ -1143,10 +1213,10 @@ public class Clay {
         return list;
     }
 
-
     public static Vector2 getScrollOffset() {
         return new Vector2(ClayFFM.Clay_GetScrollOffset(scopedAllocator));
     }
+
     public static class CLAY_ALIAS {
         public static void CLAY(Clay element, Runnable children) {
             clay(element, children);
@@ -1164,9 +1234,13 @@ public class Clay {
         public static void CLAY_TEXT(MemorySegment ms, Function<TextElementConfig, TextElementConfig> textConfig) {
             clayText(new ClayString(ms), textConfig);
         }
+    }
 
-        public static void CLAY_TEXT(ClayString cs, Function<TextElementConfig, TextElementConfig> textConfig) {
-            clayText(cs, textConfig);
-        }
+    public static String sliceToString(MemorySegment claySlice) {
+        var length = Clay_StringSlice.length(claySlice);
+        var chars = Clay_StringSlice.chars(claySlice).reinterpret(length);
+        var bytes = new byte[length];
+        MemorySegment.copy(chars, ValueLayout.JAVA_BYTE, 0,  bytes, 0, length);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 }

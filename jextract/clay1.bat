@@ -115,6 +115,3 @@ REM --include-typedef ClayVideoDemo_Data ^
 REM --include-typedef SidebarClickData ^
 REM  -I lib --output src/main/java -t dmacd.ffm.clay.demo ^
 REM  --header-class-name DemoFFM demo.h
-
-
-
