@@ -33,9 +33,8 @@ public class RaylibMultiContextJavish {
 
     public static final MemorySegment STR_ROBOTO_FONT_PATH = Arena.global().allocateFrom("resources/Roboto-Regular.ttf");
     static final int FONT_ID_BODY_16 = 0;
-    static final MemorySegment BLACK = RaylibRenderer.globalRaylibColor(0, 0, 0, 255); // raylib color
-    // todo: fix this nonsense.. (other scoped return memorysegment but maybe they should all just be java class
-    static final Color COLOR_WHITE = Color.from(Clay.GLOBAL_CLAY_COLOR(255, 255, 255, 255));
+    static final MemorySegment RAYLIB_BLACK = RaylibRenderer.globalRaylibColor(0, 0, 0, 255); // raylib color
+    static final Color COLOR_WHITE = Clay.globalClayColor(255, 255, 255, 255);
 
     static VideoDemoData ClayVideoDemo_Initialize() {
         var documents = new ArrayList<DemoDocument>(5);
@@ -115,7 +114,6 @@ public class RaylibMultiContextJavish {
         ClayFFM.Clay_SetMeasureTextFunction(measureTextFunc, fonts);
 
         var clayMemoryBottom = ClayFFM.Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory, arena.allocate(clayRequiredMemory));
-        // todo: in practice, possibly better to clone dims
         var clayContextBottom = ClayFFM.Clay_Initialize(clayMemoryBottom, dims, errHandler); // This final argument is new since the video was published
         var dataBottom = ClayVideoDemo_Initialize();
         ClayFFM.Clay_SetMeasureTextFunction(measureTextFunc, fonts);
@@ -125,14 +123,10 @@ public class RaylibMultiContextJavish {
             var renderCommandsTop = CreateLayout(clayContextTop, dataTop, 0); //Clay_RenderCommandArray
             var renderCommandsBottom = CreateLayout(clayContextBottom, dataBottom, RayFFM.GetScreenHeight() / 2);
             RayFFM.BeginDrawing();
-            RayFFM.ClearBackground(BLACK);
+            RayFFM.ClearBackground(RAYLIB_BLACK);
             RaylibRenderer.Clay_Raylib_Render(renderCommandsTop, fonts);
             RaylibRenderer.Clay_Raylib_Render(renderCommandsBottom, fonts);
             RayFFM.EndDrawing();
-// todo: more clay methods (isdebugvis etc)
-            if (RayFFM.IsKeyPressed(300)) { // f11 (f12 defaults to screenshot in raylib
-                showDebug = !showDebug;
-            }
         }
 
         RaylibRenderer.Clay_Raylib_Close();
@@ -145,14 +139,11 @@ public class RaylibMultiContextJavish {
         return Vector2.scoped(Raylib.Vector2.x(ms), Raylib.Vector2.y(ms));
     }
 
-    static boolean showDebug = true;
-
     static
         /*    Clay_RenderCommandArray */ List<RenderCommand>
     CreateLayout(MemorySegment context, VideoDemoData data, int yOffset) {
         ClayFFM.Clay_SetCurrentContext(context);
-        ClayFFM.Clay_SetDebugModeEnabled(showDebug);
-
+        ClayFFM.Clay_SetDebugModeEnabled(true);
         ClayFFM.Clay_SetLayoutDimensions(Dimensions.of(RayFFM.GetScreenWidth(), RayFFM.GetScreenHeight() / 2));
         MemorySegment mp = RayFFM.GetMousePosition((b, a)->mousePosition);
 
@@ -209,8 +200,7 @@ public class RaylibMultiContextJavish {
         Function<Sizing, Sizing> layoutExpand = (s)->s
                 .width(Sizing.grow(0))
                 .height(Sizing.grow(0));
-// todo: fix
-        final Color contentBackgroundColor = Color.from(Color.scoped(90, 90, 90, 255));
+        final Color contentBackgroundColor = Color.scoped(90, 90, 90, 255);
 
         // Build UI here
         clay(id("OuterContainer")
@@ -364,5 +354,4 @@ public class RaylibMultiContextJavish {
         }
         return renderCommands;
     }
-
 }
