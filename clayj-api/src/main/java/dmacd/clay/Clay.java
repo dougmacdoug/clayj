@@ -35,7 +35,7 @@ public class Clay {
      * todo: explain more or point to readme
      */
     // global strings include the Clau_String struct and the string
-    private static final Map<String, MemorySegment> globalStrings = new HashMap<>();
+    private static final Map<String, ClayString> globalStrings = new HashMap<>();
     // element queue holds element declarations in a stack
     private static final Queue<MemorySegment> elementQueue = new ArrayDeque<>();
     // string blocks are for dynamic strings keys are length: 4,8..128,136,144..256,512,1024
@@ -73,16 +73,29 @@ public class Clay {
      * todo: move
      */
 
-    public static class Dimensions {
-        public static MemorySegment of(float width, float height) {
+    public record Dimensions(MemorySegment ms) {
+
+        public static Dimensions scoped(float width, float height) {
             var ms = allocateScoped(Clay_Dimensions.layout());
-            Clay_Dimensions.width(ms, width);
-            Clay_Dimensions.height(ms, height);
-            return ms;
+            var dims = new Dimensions(ms);
+            return dims.width(width).height(height);
+        }
+        public float width() {
+            return Clay_Dimensions.width(ms);
+        }
+        public Dimensions width(float w) {
+            Clay_Dimensions.width(ms, w);
+            return this;
+        }
+        public float height() {
+            return Clay_Dimensions.height(ms);
+        }
+        public Dimensions height(float h) {
+            Clay_Dimensions.height(ms, h);
+            return this;
         }
     }
 
-    // todo: annoyingly bad
         public record Color(MemorySegment ms) {
         public static Color scoped(float r, float g, float b, float a) {
             var ms = allocateScoped(Clay_Color.layout());
@@ -258,17 +271,6 @@ public class Clay {
         clay(element, null);
     }
 
-    public void runInScope(Consumer<Arena> runner) {
-        allocatedStack.push(new ArrayList<>());
-        runner.accept(arena);
-        var alloc = allocatedStack.pop();
-        for (var ms : alloc) {
-            var segments = availableAllocations.computeIfAbsent((int) ms.byteSize(), ArrayDeque::new);
-            segments.add(ms);
-        }
-
-    }
-
     public static void clay(Clay element, Runnable children) {
         // todo: put a blurb in README about compatibility etc.
         //  we need to use Clay internal functions, but this means
@@ -341,6 +343,38 @@ public class Clay {
         };
     }
     public record TextElementConfig(MemorySegment ms) {
+
+        public int letterSpacing() {
+            return Clay_TextElementConfig.letterSpacing(ms);
+        }
+        public int fontId() {
+            return Clay_TextElementConfig.fontId(ms);
+        }
+        public int fontSize() {
+            return Clay_TextElementConfig.fontSize(ms);
+        }
+
+        public int textAlignment() {
+            return Clay_TextElementConfig.textAlignment(ms);
+        }
+
+        public int lineHeight() {
+            return Clay_TextElementConfig.lineHeight(ms);
+        }
+
+        public int wrapMode() {
+            return Clay_TextElementConfig.wrapMode(ms);
+        }
+
+        public Color textColor() {
+            var color = Clay_TextElementConfig.textColor(ms);
+            return new Color(color);
+        }
+
+        public MemorySegment userData() {
+            return Clay_TextElementConfig.userData(ms);
+        }
+
         public TextElementConfig letterSpacing(int spacing) {
             Clay_TextElementConfig.letterSpacing(ms, (short) spacing);
             return this;
@@ -388,11 +422,6 @@ public class Clay {
         }
     }
 
-
-    private static class ElementDeclaration {
-
-    }
-
     private MemorySegment elmMs;
 
     private Clay() {
@@ -403,16 +432,12 @@ public class Clay {
         elmMs = nextElementDeclaration();
         var idMs = Clay_ElementDeclaration.id(elmMs);
 // todo: handle other id types.. CLAY_IDI, CLAY_SID, CLAY_SIDI
-        var clayStringMS = globalStrings.computeIfAbsent(id, Clay::allocateGlobalClayString);
-        // todo: this puts the ElementId struct right inside the declaration struct
-        ClayFFM.Clay__HashString((b, a) -> {
-//            System.out.println("******* HASH  ****************");
-//            System.out.println("bytes: " + b + " align: " + a + " MS: " +idMs.byteSize());
-            return idMs;
-        }, clayStringMS, 0, 0);
+        var clayString = globalStrings.computeIfAbsent(id, Clay::allocateGlobalClayString);
+        // this puts the ElementId struct right inside the declaration struct
+        ClayFFM.Clay__HashString((b, a) -> idMs, clayString.ms, 0, 0);
     }
 
-    public static Clay id() {
+    public static Clay noid() {
         return id("");
     }
     public static Clay id(String id) {
@@ -568,6 +593,21 @@ public class Clay {
         public BorderWidth betweenChildren(int betweenChildren) {
             Clay_BorderWidth.betweenChildren(ms, (short) betweenChildren);
             return this;
+        }
+        public int left() {
+            return Clay_BorderWidth.left(ms);
+        }
+        public int right() {
+            return Clay_BorderWidth.right(ms);
+        }
+        public int top() {
+            return Clay_BorderWidth.top(ms);
+        }
+        public int bottom() {
+            return Clay_BorderWidth.bottom(ms);
+        }
+        public int betweenChildren() {
+            return Clay_BorderWidth.betweenChildren(ms);
         }
     }
 
@@ -872,13 +912,16 @@ public class Clay {
         clayText(ClayString.dynamic(s), textConfig);
     }
 
-    public static class ClayString {
-        final private MemorySegment ms;
+    public record ClayString(MemorySegment ms) {
 
-        private ClayString(MemorySegment ms) {
-            this.ms = ms;
+        public int length() { return Clay_String.length(ms); }
+        public boolean isStaticallyAllocated() { return Clay_String.isStaticallyAllocated(ms); }
+        public MemorySegment chars() { return Clay_String.chars(ms); }
+        public String toJavaString() {
+            var bytes = new byte[length()];
+            MemorySegment.copy(chars(), ValueLayout.JAVA_BYTE, 0,  bytes, 0, length());
+            return new String(bytes, StandardCharsets.UTF_8);
         }
-
         public static MemorySegment buffered(MemorySegment ms, String s) {
             var utf8 = s.getBytes(StandardCharsets.UTF_8);
             if (ms.byteSize() < CLAY_STRING_STRUCT_SIZE + utf8.length) {
@@ -892,9 +935,9 @@ public class Clay {
             return ms;
         }
 
+        // todo: investigate @untainted or errno:@CompileTimeConstant
         public static ClayString literal(String s) {
-            // todo: decide if the claystring struct should be part of the allocation [currently it is only for globals]
-            return new ClayString(globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString));
+            return globalStrings.computeIfAbsent(s, Clay::allocateGlobalClayString);
         }
 
         public static ClayString dynamic(String s) {
@@ -910,6 +953,7 @@ public class Clay {
             } else if (allocSize <= 1024) {
                 allocSize = 1024;
             } else {
+                // todo: just use a special allocator and close it each loop
                 throw new IndexOutOfBoundsException("UTF8 string length > 1024: " + utf8.length);
             }
             var list = stringBlocks.computeIfAbsent(allocSize, n -> new ArrayList<>());
@@ -928,14 +972,14 @@ public class Clay {
     }
 
 
-    private static MemorySegment allocateGlobalClayString(String s) {
+    private static ClayString allocateGlobalClayString(String s) {
         var utf8 = s.getBytes(StandardCharsets.UTF_8);
         var ms = GLOBAL_ARENA.allocate(utf8.length + CLAY_STRING_STRUCT_SIZE, 8);
         MemorySegment.copy(utf8, 0, ms, ValueLayout.JAVA_BYTE, CLAY_STRING_STRUCT_SIZE, utf8.length);
         Clay_String.chars(ms, ms.asSlice(CLAY_STRING_STRUCT_SIZE, utf8.length));
         Clay_String.isStaticallyAllocated(ms, true);
         Clay_String.length(ms, utf8.length);
-        return ms;
+        return new ClayString(ms);
     }
 
 // region Clay Enums
@@ -1202,6 +1246,68 @@ public class Clay {
             return RenderCommandType.values()[Clay_RenderCommand.commandType(ms)];
         }
     }
+    public record StringSlice(MemorySegment ms) {
+        public int length() {
+            return Clay_StringSlice.length(ms);
+        }
+        public MemorySegment chars() {
+            return Clay_StringSlice.chars(ms);
+        }
+        public String toJavaString() {
+            var bytes = new byte[length()];
+            MemorySegment.copy(chars(), ValueLayout.JAVA_BYTE, 0,  bytes, 0, length());
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+    }
+    public record RectangleRenderData(MemorySegment ms) {
+        public Color backgroudnColor() {
+            var color = Clay_RectangleRenderData.backgroundColor(ms);
+            return new Color(color);
+        }
+        public CornerRadius cornerRadius() {
+            var cr = Clay_RectangleRenderData.cornerRadius(ms);
+            return new CornerRadius(cr);
+        }
+    }
+    public record BorderRenderData(MemorySegment ms) {
+        public Color color() {
+            var color = Clay_BorderRenderData.color(ms);
+            return new Color(color);
+        }
+        public BorderWidth width() {
+            var w = Clay_BorderRenderData.width(ms);
+            return new BorderWidth(w);
+        }
+        public CornerRadius cornerRadius() {
+            var cr = Clay_BorderRenderData.cornerRadius(ms);
+            return new CornerRadius(cr);
+        }
+    }
+
+
+    public record TextRenderData(MemorySegment ms) {
+        public StringSlice stringContents() {
+            var contents = Clay_TextRenderData.stringContents(ms);
+            return new Clay.StringSlice(contents);
+        }
+        public Color textColor() {
+            var color = Clay_TextRenderData.textColor(ms);;
+            return new Color(color);
+        }
+        public int fontId() {
+            return Clay_TextRenderData.fontId(ms);
+        }
+        public int fontSize() {
+            return Clay_TextRenderData.fontSize(ms);
+        }
+        public int letterSpacing() {
+            return Clay_TextRenderData.letterSpacing(ms);
+        }
+        public int lineHeight() {
+            return Clay_TextRenderData.lineHeight(ms);
+        }
+    }
+
     public static List<RenderCommand> endLayout() {
         List<RenderCommand> list = new ArrayList<>();
         var renderCommands = ClayFFM.Clay_EndLayout(scopedAllocator);
@@ -1236,11 +1342,4 @@ public class Clay {
         }
     }
 
-    public static String sliceToString(MemorySegment claySlice) {
-        var length = Clay_StringSlice.length(claySlice);
-        var chars = Clay_StringSlice.chars(claySlice).reinterpret(length);
-        var bytes = new byte[length];
-        MemorySegment.copy(chars, ValueLayout.JAVA_BYTE, 0,  bytes, 0, length);
-        return new String(bytes, StandardCharsets.UTF_8);
-    }
 }

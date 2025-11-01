@@ -113,13 +113,14 @@ public class Java2DMultiContextExample {
             mouseX = e.getX();
             mouseY = e.getY();
         }
+
         @Override
         public void mouseWheelMoved(MouseWheelEvent e) {
             mouseScroll = (float) e.getPreciseWheelRotation();
         }
         private Arena arena  = null;
         public void setup() {
-            arena = Java2DRenderer.swingInitialize(1024, 768, "Java2D Clay Demo", 0);
+            arena = Java2DRenderer.java2DInitialize(1024, 768, "Java2D Clay Demo", 0);
             Java2DRenderer.theFont = Java2DMultiContextExample.CustomFont("/Roboto-Regular.ttf");
             Java2DRenderer.graphics =  getGraphics();
             Java2DRenderer.fontMetrics = Java2DRenderer.graphics.getFontMetrics(Java2DRenderer.theFont);
@@ -127,11 +128,11 @@ public class Java2DMultiContextExample {
             long clayRequiredMemory = ClayFFM.Clay_MinMemorySize();
             var clayMemoryTop = ClayFFM.Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory,
                     arena.allocate(clayRequiredMemory));
-            var dims = Clay.Dimensions.of(getWidth(), (float) (getHeight() / 2));
+            var dims = Clay.Dimensions.scoped(getWidth(), (float) (getHeight() / 2));
             var errHandler = Clay_ErrorHandler.allocate(arena);
             var errFunc = Clay_ErrorHandler.errorHandlerFunction.allocate(Clay::errorHandler, arena);
             Clay_ErrorHandler.errorHandlerFunction(errHandler, errFunc);
-            clayContextTop = ClayFFM.Clay_Initialize(clayMemoryTop, dims, errHandler); // This final argument is new since the video was published
+            clayContextTop = ClayFFM.Clay_Initialize(clayMemoryTop, dims.ms(), errHandler); // This final argument is new since the video was published
 
             dataTop = ClayVideoDemo_Initialize();
 
@@ -140,7 +141,7 @@ public class Java2DMultiContextExample {
 
             var clayMemoryBottom = ClayFFM.Clay_CreateArenaWithCapacityAndMemory(arena, clayRequiredMemory, arena.allocate(clayRequiredMemory));
             // todo: in practice, possibly better to clone dims
-            clayContextBottom = ClayFFM.Clay_Initialize(clayMemoryBottom, dims, errHandler); // This final argument is new since the video was published
+            clayContextBottom = ClayFFM.Clay_Initialize(clayMemoryBottom, dims.ms(), errHandler); // This final argument is new since the video was published
             dataBottom = ClayVideoDemo_Initialize();
             ClayFFM.Clay_SetMeasureTextFunction(measureTextFunc, MemorySegment.NULL);
         }
@@ -202,7 +203,7 @@ public class Java2DMultiContextExample {
             ClayFFM.Clay_SetCurrentContext(context);
             ClayFFM.Clay_SetDebugModeEnabled(true);
 
-            ClayFFM.Clay_SetLayoutDimensions(Clay.Dimensions.of(getWidth(), (float) (getHeight() / 2)));
+            ClayFFM.Clay_SetLayoutDimensions(Clay.Dimensions.scoped(getWidth(), (float) (getHeight() / 2)).ms());
 
             ClayFFM.Clay_SetPointerState(Clay.Vector2.scoped(mouseX, mouseY - yOffset).ms(), pressed);
             var scrollDelta = Vector2.scoped(0, mouseScroll);
@@ -270,7 +271,7 @@ public class Java2DMultiContextExample {
                                     .layout(l->l
                                             .padding(0, 0, 8, 8)
                                     ), ()->{
-                                clay(id()
+                                clay(id("")
                                         .layout(l->l
                                                 .layoutDirection(LayoutDirection.TOP_TO_BOTTOM)
                                                 .sizing(s->s
@@ -288,7 +289,7 @@ public class Java2DMultiContextExample {
                         }
                     }); // end file button
                     RenderHeaderButton("Edit");
-                    clay(id().layout(l->l.sizing(Clay.CLAY_SIZING_GROW(0))));
+                    clay(noid().layout(l->l.sizing(Clay.CLAY_SIZING_GROW(0))));
                     RenderHeaderButton("Upload");
                     RenderHeaderButton("Media");
                     RenderHeaderButton("Support");
@@ -312,7 +313,7 @@ public class Java2DMultiContextExample {
                         for (int i = 0; i < documents.size(); i++) {
                             var document = documents.get(i);
                             if (i == data.selectedDocumentIndex) {
-                                clay(id().layout(sidebarButtonLayout)
+                                clay(noid().layout(sidebarButtonLayout)
                                         .backgroundColor(120, 120, 120, 255)
                                         .cornerRadius(8), ()->{
 
@@ -323,7 +324,7 @@ public class Java2DMultiContextExample {
                                 });
                             } else {
                                 final int hoverIndex = i;
-                                clay(id().layout(sidebarButtonLayout)
+                                clay(noid().layout(sidebarButtonLayout)
                                         .backgroundColor(120, 120, 120, ClayFFM.Clay_Hovered() ? 120 : 0)
                                         .cornerRadius(Clay.CLAY_CORNER_RADIUS(8)), ()->{
                                     Clay.onHover((_, p)->{
@@ -378,7 +379,7 @@ public class Java2DMultiContextExample {
         }
 
         static void RenderHeaderButton(ClayString text) {
-            clay(id()
+            clay(noid()
                     .layout(l->l
                             .padding(16, 16, 8, 8))
                     .backgroundColor(140, 140, 140, 255)
@@ -394,7 +395,7 @@ public class Java2DMultiContextExample {
         }
 
         static void RenderDropdownMenuItem(ClayString str) {
-            clay(id().layout(l->l
+            clay(noid().layout(l->l
                     .padding(Clay.CLAY_PADDING_ALL(16))), ()->{
                 clayText(str, cfg->cfg
                         .fontId(FONT_ID_BODY_16)
